@@ -259,7 +259,7 @@ public class RemoteCallbackList<E extends IInterface> {
 
 再回头看下linkToDeath的底层实现，native层的JavaDeathRecipient的构造函数，就比较清楚了，system_server进程的BinderProxy对象注册了太多的死亡回调，导致global reference table爆了，这个问题跟BinderProxy泄漏应该是有关联的，所以接下来只要确认这些BinderProxy具体是谁。
 
-## 增加调试代码，定位BinderProxy详细信息
+## 增加调试代码，输出BinderProxy详细信息
 
 先看下打印global reference table的代码：
 
@@ -483,11 +483,11 @@ static const JNINativeMethod gBinderProxyMethods[] = {
 
 OK，一切就续，下面就只要make framework && make libart && make lib_android_runtime && 然后把生成的so文件push到手机上对应的位置后，重启手机，稳定性测试一段事件后，连上debugger，手动执行下Debug.dumpReferenceTables()，发现依然没有打印出来的interfaceDescriptor都是空的，回看上面的BinderProxy.getInterfaceDescriptor()和BinderProxy.getInterfaceDescriptorV2()方法，它们实际都是个binder call，需要ipc到远端进程的调用Binder.getInterfaceDescriptorV2()，所以这儿可能的问题就是远端进程可能早就挂了，这个ipc肯定就失败了。
 
-### 再次调整调试代码
+### 再调整
 
 既然binderProxy对应的远端进程可能会挂掉，那么在远端进程调用system_server的接口，写Binder对象的时候，顺便把它的interfaceDescriptor写入Parcel，一并发送给system_system，然后system_server进程收到binder调用时，把远端app进程的写入的interfaceDescriptor从parcel里反序列化出来，塞进对应的BinderProxy即可。
 
-考虑到system_server会或类似installd, sufaceflinger这类native进程进行binder call，所以不能在上层的Parcel.java#writeStrongBinder()方法里，写入参数binder的interfaceDescriptor，例如：
+考虑到system_server会或类似installd, sufaceflinger这类native进程进行binder call，所以像下面这样仅修改Parcel.java#writeStrongBinder()方法，**<font color="red">还不够稳妥</font>**：
 ```java
 public class Binder implements IBinder {
 	public final void writeStrongBinder(IBinder val) {
@@ -508,7 +508,7 @@ public class Binder implements IBinder {
     }
 ```
 
-否则可能因为序列化/反序列化时对parcel读写不一致，引入不必要的稳定性问题，所以得改libbinder的底层实现：
+否则可能因为序列化/反序列化时对parcel读写不一致，引入不必要的稳定性问题，那么就得换个方式，改libbinder的底层实现，因为不管是java进程还是native进程实际都是使用的libbinder：
 ```diff
 // frameworks/base/core/jni/android_os_Parcel.cpp
 --static void android_os_Parcel_writeStrongBinder(JNIEnv* env, jclass clazz, jlong nativePtr, jobject object)
@@ -653,4 +653,147 @@ final class BinderProxy implements IBinder {
     }
    ...
 ```
-// To be continued
+*<font color="#666">注：在ipc时，binder驱动在序列化binder时，如果发现操作的是BnBinder对象，即类型是BINDER_TYPE_BINDER的，则实际会写入BINDER_TYPE_HANDLE类型，这样当ipc对端反序列化时，就会构造一个BpBinder对象表示原来的BnBinder对象；如果写入的就是BINDER_TYPE_HANDLE，则binder驱动写入的还是BINDER_TYPE_HANDLE类型。感兴趣的话可以看kernel/drivers/staging/android/Binder.c#binder_transaction() 的实现逻辑</font>*
+
+##  定位泄漏点
+重新打包后，压测跑到6000多次，就复现了这个问题，查看转储到dropbox里的global reference table文件：
+```bash
+BinderProxy diagnosis: total size of 21762
+BinderProxy descriptor histogram (top 100):
+ #1: <cleared weak-ref> x128
+ #2: unknown x48
+ #3: com.android.bluetooth-u1002-p4845-android.bluetooth.IBluetoothHeadset@dbb6c2b x3
+ #4: com.android.bluetooth-u1002-p19850-android.bluetooth.IBluetoothHeadset@dbb6c2b x3
+ #5: com.android.bluetooth-u1002-p30548-android.bluetooth.IBluetoothHeadset@dbb6c2b x3
+ #6: com.android.bluetooth-u1002-p10107-android.bluetooth.IBluetoothHeadset@e035221 x3
+ #7: com.android.bluetooth-u1002-p8648-android.bluetooth.IBluetoothHeadset@dbb6c2b x3
+ #8: com.android.bluetooth-u1002-p27012-android.bluetooth.IBluetoothHeadset@dbb6c2b x3
+ #9: com.android.bluetooth-u1002-p2900-android.bluetooth.IBluetoothHeadset@dbb6c2b x3
+ #10: com.android.bluetooth-u1002-p12192-android.bluetooth.IBluetoothHeadset@dbb6c2b x2
+ #11: com.android.bluetooth-u1002-p20034-android.bluetooth.IBluetoothHidDevice@5c0c317 x2
+ #12: com.android.bluetooth-u1002-p9279-android.bluetooth.IBluetoothHeadset@dbb6c2b x2
+...
+Per Uid Binder Proxy Counts:
+UID : 1000  count = 718
+UID : 1001  count = 194
+UID : 1002  count = 20262 // <<<<<<<<
+UID : 1027  count = 21
+```
+
+都是指向蓝牙（uid=1002）进程的BinderProxy，同时我在系统crash前也打印了system_server挂掉前的heap profile，所以接下来先借助下Eclipse MAT来统计下所有的BinderProxy
+<center>
+<img src="binder-proxy-leak/binder-proxy-instances.png"  width="400px"/>
+</center>
+
+*<font color="blue">注：android上通过Debug.dumpHprofData()接口dump下来的hprof文件需要用hprof-con工具手动转一下才能由MAT打开，这个工具位于你下载的android sdk目录，见${android-sdk}/platform-tools/hprof-conv</font>*
+
+展开所有的entry后，点击工具栏的"导出"按钮，再由shell命令排序好后，得到：
+
+| BinderProxy                           | 数量     |
+| ------------------------------------- | -------- |
+| android.bluetooth.IBluetoothHeadset   | **6583** |
+| android.bluetooth.IBluetoothHidDevice | **6518** |
+| miui.process.IMiuiApplicationThread   | **6048** |
+
+挑选一个interfaceDescriptor是蓝牙进程的IMiuiApplicationThread的BinderProxy的实例：
+
+```sql
+SELECT * FROM android.os.BinderProxy s where toString(s.descriptorV2.value) = "com.android.bluetooth-u1002-p304-miui.process.IMiuiApplicationThread@c01e15e"
+```
+
+有泄漏，即它没有被虚拟机回收，那么必定就有>=1的gc 跟节点还（直接或间接）持有这个被泄露的对象的引用，所以再借助MAT来分析有哪些gc根节点指向这个被泄露的对象：
+<center>
+<img src="binder-proxy-leak/path-to-gc-roots-of-leaked-binder-proxy.png"  width="400px"/>
+<img src="binder-proxy-leak/gc-roots-of-leaked-binder-proxy.png"  width="400px"/>
+</center>
+可以看到这个BinderProxy是被mMiuiApplicationThreads这个SparseArray强引用着，mMiuiApplicationThreads又是被
+
+mMiuiApplicationThreadManager引用，它是mMiuiApplicationThreadManager定义在ProcessManagerService.java里
+
+mMiuiApplicationThreads这个SparseArray的size是**6143！**。结合代码发现了每个进程的启动的时候会向system_server注册一个
+
+descriptor为IMiuiApplicationThread的BinderProxy对象，主要用于MIUI的长截屏功能而在进程挂掉的时候，却没有从移除掉，所以就
+
+发生了泄漏，详细代码枯燥，此处略，这一块属于进程管理相关的，直接通知相关同学进行修复了。
+
+继续定位剩余两个泄漏项，流程跟定位IMiuiApplicationThread泄漏的是一样的：
+
+1、 标定一个泄漏的BinderProxy
+
+![leaked-bluetooth-headset](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/leaked-bluetooth-headset.png)
+
+2、查看它的gc roots
+
+![bluetooth-headset-gc-roots](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/bluetooth-headset-gc-roots.png)
+
+可以看到它被ProcessRecord.connections这个ArraySet引用着，那么下面再看下这个ProcessRecord是表示的哪个进程：
+
+![process-record-connections-gc-roots](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/process-record-connections-gc-roots.png)
+
+最后得到：
+
+![abnormal-process-record](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/abnormal-process-record.png)
+
+**原来是system_server进程的ProcessRecord的问题，注意看connections.mArray的大小，有7749个!**
+
+3、确认代码逻辑：
+
+1. 翻看下对ProcessRecord.connections进行增删的地方，只有binderService和unbindService
+2. 到这里我们就可以判定肯定是system_server某个地方有重复绑定IBluetoothHeadset这个代表的service了，去package/apps/bluetooth目录下确认这个类是HeadsetService.java了，最终定位到BluetoothManagerService.java类里确实存在重复bind的情况，具体代码略，另外还确认到BluetoothHidDevice.java逻辑也存在问题，导致压力测试中systemui和com.xiaomi.bluetooth会出现重复bind的情况，已经跟蓝牙同事沟通，由他们进行修复并提交给aosp。
+
+## 继续调查global reference overflow问题
+在上面的问题都修复后，9.0上依然有global reference overflow问题，继续测试后确认是桌面频繁调用壁纸接口导致，根本原因是RemoteCallbackList.register方法实现存在问题下面这段代码可以很容易的制造出这个问题：
+```java
+void testGetCurrentWallpaper() {
+    WallpaperManager manager = WallpaperManager.getInstance(this);
+    int count = 0;
+    while (true) {
+        count++;
+        BitmapDrawable drawable = null;
+        if ((drawable = (BitmapDrawable) manager.getDrawable()) == null) {
+            Log.d("WWW", "failed to get wallpaper: seq=" + count);
+        } else {
+            Log.d("WWW", "got wallpaper: seq=" + count);
+            // deprecate cahce
+            drawable.getBitmap().recycle();
+        }
+    }
+}
+```
+
+提交了修复patch给aosp，*这类小概率问题google的研发一般处理的都不会太积极*
+
+```java
+
+    public boolean register(E callback, Object cookie) {
+        synchronized (mCallbacks) {
+            IBinder binder = callback.asBinder();
+            try {
+                Callback cb = new Callback(callback, cookie);
+                binder.linkToDeath(cb, 0);
+                mCallbacks.put(binder, cb);
+                Callback oldDeathRecipient = mCallbacks.put(binder, cb);
+                if (oldDeathRecipient != null) {
+                    removeRegistration(oldDeathRecipient);
+                    try {
+                        // Global reference would overflow if the same callback was
+                        // registered repeatedly
+                        binder.unlinkToDeath(oldDeathRecipient, 0);
+                    } catch (NoSuchElementException e) {
+                        // Should not happen
+                        Slog.d(TAG, "Failed to unregister " + oldDeathRecipient);
+                    }
+                }
+                return true;
+            } catch (RemoteException e) {
+                return false;
+            }
+        }
+    }
+```
+
+
+
+## 小结：
+
+内存泄露问题，平时一般都不会太关注，如果是app开发还好点，集成一下leakcannary这类工具，可以做到自动分析activity这类泄露，基本上能把潜在的泄露在外发前就解决掉；但system_server进程有点特殊，除非发生OTA，用户手动重启手机这种情况，它是一直在后台运行的，哪怕有一点泄露，也经不住几周或几个月的累积，积累到一定程度了，就是系统卡顿，app频繁被杀，最终异常重启，影响用户口碑。
