@@ -140,6 +140,7 @@ bool DexFileVerifier::Verify() {
 结合一下dex文件的格式：
 ![](/android-vdex/dex_format.png)
 [字段含义对照表](https://source.android.com/devices/tech/dalvik/dex-format?hl=zh-cn)：
+
 | 名称           | 格式                 | 说明                                                         |
 | -------------- | -------------------- | ------------------------------------------------------------ |
 | header         | header_item          | 标头                                                         |

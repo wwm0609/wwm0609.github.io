@@ -15,7 +15,7 @@ tags: [pkms, permission]
 
 ```bash
 → installPackageLI（安装app，入口函数）
-	→ installNewPackageLI（安装一个全新的app，即以前未安装过）
+    → installNewPackageLI（安装一个全新的app，即以前未安装过）
     → parsePackage (解析AndroidManifest.xml：构建Activity/Service/ContentProvider/BroadcastReceiver运行时对象...)
     → scanPackageLI (收集证书/校验签名，dex2oat优化，创建app数据目录，释放so文件，分类规整四大组件...)
     → updateSettingsLI（更新/持久化app信息） 
@@ -84,9 +84,9 @@ private void grantPermissionsLPw(PackageParser.Package pkg, boolean replace,
 
 |文件|功能|
 |---|----|
-|/frameworks/base/core/java/android/os/Process.java#getGidForName(name) |根据gid名称查询gid value |
+|android/os/Process.java#getGidForName(name) |根据gid名称查询gid value |
 |/frameworks/base/data/etc/platform.xml | 定义权限名称 与 gid 名称的映射关系|
-|/system/core/include/private/android_filesystem_config.h | 定义uid/gid名称和值的映射|
+|/system/core/.../android_filesystem_config.h | 定义uid/gid名称和值的映射|
 
 
 
