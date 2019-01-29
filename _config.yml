@@ -5,9 +5,9 @@
 # Site
 title: wwm的笔记
 subtitle: 烂笔头，穷开心😊
-description: Mostly about Andoird, Yeah!
+description: 不烦恼🖖 
 keywords: Android
-author: wwm0609
+author: wwm
 language: zh-Hans
 timezone:
 
@@ -80,4 +80,4 @@ theme: next
 deploy:
   type: git
   repo: git@github.com:wwm0609/wwm0609.github.io.git
-  branch: preview 
+  branch: master 
