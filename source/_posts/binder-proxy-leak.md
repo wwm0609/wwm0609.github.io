@@ -720,19 +720,19 @@ descriptor为IMiuiApplicationThread的BinderProxy对象，主要用于MIUI的长
 
 1、 标定一个泄漏的BinderProxy
 
-![leaked-bluetooth-headset](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/leaked-bluetooth-headset.png)
+![leaked-bluetooth-headset](binder-proxy-leak/leaked-bluetooth-headset.png)
 
 2、查看它的gc roots
 
-![bluetooth-headset-gc-roots](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/bluetooth-headset-gc-roots.png)
+![bluetooth-headset-gc-roots](binder-proxy-leak/bluetooth-headset-gc-roots.png)
 
 可以看到它被ProcessRecord.connections这个ArraySet引用着，那么下面再看下这个ProcessRecord是表示的哪个进程：
 
-![process-record-connections-gc-roots](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/process-record-connections-gc-roots.png)
+![process-record-connections-gc-roots](binder-proxy-leak/process-record-connections-gc-roots.png)
 
 最后得到：
 
-![abnormal-process-record](/home/pip/Documents/wwm0609.github.io/source/_posts/binder-proxy-leak/abnormal-process-record.png)
+![abnormal-process-record](binder-proxy-leak/abnormal-process-record.png)
 
 **原来是system_server进程的ProcessRecord的问题，注意看connections.mArray的大小，有7749个!**
 

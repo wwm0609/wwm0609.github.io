@@ -815,9 +815,9 @@ version: 5.1.4
 # comment subsystem
 gitalk:
   enable: true
-  githubId: wwm0609
+  owner: wwm0609
   repo: wwm0609.github.io
   ClientID: 07c1fd49d65fae2e7497
-  ClientSecret: 6bd43fc062fe78c6359b21e1eae64bb7f7876acd
-  adminUser: wwm0609
+  ClientSecret: fa28b3673a867ae28e25b4037d1f6e173d8c0dd5
+  admin: wwm0609
   distractionFreeMode: true

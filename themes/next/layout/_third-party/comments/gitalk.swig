@@ -7,8 +7,8 @@
           clientID: '{{ theme.gitalk.ClientID }}',
           clientSecret: '{{ theme.gitalk.ClientSecret }}',
           repo: '{{ theme.gitalk.repo }}',
-          owner: '{{ theme.gitalk.githubID }}',
-          admin: ['{{ theme.gitalk.adminUser }}'],
+          owner: '{{ theme.gitalk.owner}}',
+          admin: ['{{ theme.gitalk.admin}}'],
           id: location.pathname,
           distractionFreeMode: '{{ theme.gitalk.distractionFreeMode }}'
         })
