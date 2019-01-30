@@ -1,4 +1,9 @@
-#/bin/bash!
+#!/bin/bash
+
+# install
+npm install hexo --save
+
+
 # 可以在markdown里使用图片
 npm install hexo-asset-image --save
 
