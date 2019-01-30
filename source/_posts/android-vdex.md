@@ -321,3 +321,57 @@ struct ProtoId {
 | 支付宝         | 10.1.8.112305 | 40.8Mb / 58Mb        | 2.768秒    | 13.764秒             |
 | 淘宝           | 7.2.3         | 11.6Mb / 76Mb        | 692毫秒    | 3.641秒              |
 | 今日头条极速版 | 6.1.9         | 4.8Mb / 2.9Mb        | 242毫秒    | 1.899s               |
+
+到9.0上，Vdex结构丰富了点：
+
+```c++
+// VDEX files contain extracted DEX files. The VdexFile class maps the file to
+// memory and provides tools for accessing its individual sections.
+//
+// File format:
+//   VdexFile::VerifierDepsHeader    fixed-length header
+//      Dex file checksums
+//
+//   Optionally:
+//      VdexFile::DexSectionHeader   fixed-length header
+//
+//      quicken_table_off[0]  offset into QuickeningInfo section for offset table for DEX[0].
+//      DEX[0]                array of the input DEX files, the bytecode may have been quickened.
+//      quicken_table_off[1]
+//      DEX[1]
+//      ...
+//      DEX[D]
+//
+//   VerifierDeps
+//      uint8[D][]                 verification dependencies
+//
+//   Optionally:
+//      QuickeningInfo
+//        uint8[D][]                  quickening data
+//        uint32[D][]                 quickening data offset tables
+```
+
+增加了VerifierDeps和QuickeningInfo，其中VerifierDeps是用于快速校验dex里method合法性的，它是在第一次dex2oat的时候生成，
+
+后面再做dex2oat的时候可以根据这个信息，就不用挨个分析字节码了（虚拟机总是向前兼容的），只要确认依赖的类存在就ok了，详细
+
+可以看：
+
+```git
+commit ca3c8c33501bf199d6fd0a5db30a27d8e010cb23
+Author: David Brazdil <dbrazdil@google.com>
+Date:   Tue Sep 6 14:04:48 2016 +0100
+
+    Collect verifier dependencies
+    
+    MethodVerifier tests whether a DEX method is valid w.r.t. the classes
+    in class path. Since the APK does not change across OTA updates, it
+    is not necessary to analyze the bytecode again with MethodVerifier,
+    as long as its dependencies on the class path (which may have changed)
+    are satisfied.
+    
+    This patch introduces VerifierDeps, a class path dependency collector,
+    and adds hooks into MethodVerifier where classes/methods/fields are
+    resolved and where assignability of types is tested.
+```
+
