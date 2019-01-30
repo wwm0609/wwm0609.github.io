@@ -107,13 +107,10 @@ bool OatWriter::WriteAndOpenDexFiles(
 ```
 
 第1步：打开apk文件，把其中的classes[N].dex文件合并写入到vdex文件
-
 WriteDexFiles流程：此处略过，见后文<a href="#write_vdex">vdex的生成过程</a>
 
-第2步：map vdex文件到内存，用于后续对其中的dex文件做优化，并写入到odex文件
-
+第2步：map vdex文件到内存，用于后续对其中的dex文件做优化，并写入到odex文件。
 如果vdex是刚刚创建的，则还需要vdex里的dex文件部分是否合法，否则便可跳过校验流程，直接进行后续的代码优化流程
-
 OpenDexFiles流程：OatWriter::OpenDexFiles -> DexFile::Open -> DexFile::OpenCommon -> DexFileVerifier::Verify
 
 DexFileVerifier::Verify的主流程：
@@ -155,18 +152,17 @@ bool DexFileVerifier::Verify() {
 | data           | ubyte[]              | 数据区，包含上面所列表格的所有支持数据。不同的项有不同的对齐要求；如有必要，则在每个项之前插入填充字节，以实现所需的对齐效果。 |
 | link_data      | ubyte[]              | 静态链接文件中使用的数据。本文档尚未指定本区段中数据的格式。此区段在未链接文件中为空，而运行时实现可能会在适当的情况下使用这些数据。 |
 
-1. CheckHeader()：校验dex头信息(见上面dex文件结构图左半部分)
+#### CheckHeader()：校验dex头信息(见上面dex文件结构图左半部分)
 
    校验实际文件大小与dex头文件里保存的file_size是否一致；
-
    计算dex文件的checksum，然后与dex头里保存的checksum对比，检查是否一致；
-
    比较dex文件的[字节序](https://zh.wikipedia.org/wiki/%E5%AD%97%E8%8A%82%E5%BA%8F)(endian_tag)与当前机器的字节序是否一致，目前dex使用的都为小端序(little-endian);
-
    检测dex文件头里保存的header_size是否存在异常；
 
    检查link_off, link_size, map_off, map_size…..等字段的是否合法，例如string_id偏移是否超出了dex文件本身长度，string_id偏移是否正确的对齐(align)了，定义的类/方法数是否超过了65536个
-2. CheckMap()：
+
+#### CheckMap()：
+
    当dex文件被映射(mmap)到内存后，map区域(mmap起始地址+ map_offset)就可以被看做一个list（MapList），这个list的每一个item（MapItem）分别表示了header, stringId, typeId, methodId, fieldId, ...code等不同类别
    MapList的结构如下：
 
@@ -186,7 +182,8 @@ bool DexFileVerifier::Verify() {
    };
    ```
 
-3. CheckIntraSection()：
+#### CheckIntraSection()：
+
    *intra翻译：同一事物内部各部分之间*
    checkPadding(): 前后两个不同类型的item之前的是否正确的对齐了，例如用于对齐的每个字节的值必须为0，两个mapitem的地址(MapItem.offset_)不能有相交(overlap)
    若MapItem.type_是header, string_id, typeId, proto_id, field_id, method_id, class_def, callSizeId, methodHandle, typeList, anotationSet等类型的话：
@@ -234,84 +231,65 @@ struct MethodId {
 };
 ```
 
-   校验该类所有filed/method的**meber index**是有序，是否有越界
-​   根据filed/method的**member index**从filed_ids/method_ids链表找到对应的项，再利用filedId/methodId里的class_idx遍历class_def    链表，找出对应的该field/method所属class_def项，
-​    并校验该类下所有field/method的均含有一致的class_idx
-​    校验该类下的所有field/method的访问标志符的合法性: private/protected/public 仅能有其一，是否定义了未知的flag, 一个方法不能 同时声明virtual和direct, 虚方法不能同时声明有final/private/static/..., etc.
-​    校验name_idx是否合法：能否根据其解析出方法的字符串
-​    检查method的code_off_合法性：native/abstract 方法不能有code，所以其code_off_须为0；相反的，其他类型的方法则其code_off_不能为0，...
-​    ...
-3) codeItem: TL;DR
+    校验该类所有filed/method的**meber index**是有序，是否有越界；
+    根据filed/method的**member index**从filed_ids/method_ids链表找到对应的项，再利用filedId/methodId里的class_idx遍历class_def 链表，找出对应的该field/method所属class_def项，​并校验该类下所有field/method的均含有一致的class_idx；
+    校验该类下的所有field/method的访问标志符的合法性: private/protected/public 仅能有其一，是否定义了未知的flag, 一个方法不能 同时声明virtual和direct, 虚方法不能同时声明有final/private/static/...；
+    校验name_idx是否合法：能否根据其解析出方法的字符串；
+    检查method的code_off_合法性：native/abstract 方法不能有code，所以其code_off_须为0；相反的，其他类型的方法则其code_off_不能为0，等等；
+    ...
+  4) codeItem: TL;DR
+  5) stringData: TL;DR
+  ...
 
-4) stringData: TL;DR
+#### CheckInterSection()：
+    *inter:不同事物之间*
+  在checkIntraSection()函数执行过程中，每校验完一个位于data section的item时，如stringData, classData, codeItem...等时，就会把他们的地址偏移与类型给记录到一个hash表offset_to_type_map_中
+  1) 遍历string_id区所有项：
+  ```c++
+  struct StringId {
+    uint32_t string_data_off_;  // offset in bytes from the base address
+  };
+  ```
+    检查string_id里存储的string_data_off_是否合法，即能否在offset_to_type_map_查找到匹配的记录，所有的string_id项已按照其指向的字符串字典序排好序了
+  2) 校验type_id区所有项：
+  ```c++
+  struct TypeId {
+    dex::StringIndex descriptor_idx_;  // index into string_ids
+  };
+  ```
+  检查type_id项里存储的descriptor_idx_是否合法，即能否在根据该idx解析成该type的字符串表示，并检查所有项是否已按照descriptor_idx_从小到大排序
+  3) 校验proto_id区所有项：
+  ```c++
+  struct ProtoId {
+    dex::StringIndex shorty_idx_;     // index into string_ids array for shorty descriptor
+    dex::TypeIndex return_type_idx_;  // index into type_ids array for return type
+    uint16_t pad_;                    // padding = 0
+    uint32_t parameters_off_;         // file offset to type_list for parameter types
+  };
+  ```
+  检查能否根据 parameters_off_ 在offset_to_type_map_里查到相应记录, 并检查所有的参数是否合法
+  能否根据short_idx_正确decode出字符串表示
+  检查return_type_idx_是否越界(65535)，能否由其最终正确解析出它的字符串表示形式
+  检查所有proto_id项是否已根据return_type_idx_, 参数的type_id排序 
 
- ...
-
-4. CheckInterSection()：
-*inter:不同事物之间*
-
-在checkIntraSection()函数执行过程中，每校验完一个位于data section的item时，如stringData, classData, codeItem...等时，就会把他们的地址偏移与类型给记录到一个hash表offset_to_type_map_中
-
-1) 遍历string_id区所有项：
-
-```c++
-struct StringId {
-  uint32_t string_data_off_;  // offset in bytes from the base address
-};
-```
-
-检查string_id里存储的string_data_off_是否合法，即能否在offset_to_type_map_查找到匹配的记录，所有的string_id项已按照其指向的字符串字典序排好序了
-
-2) 校验type_id区所有项：
-
-```c++
-struct TypeId {
-  dex::StringIndex descriptor_idx_;  // index into string_ids
-};
-```
-
-检查type_id项里存储的descriptor_idx_是否合法，即能否在根据该idx解析成该type的字符串表示，并检查所有项是否已按照descriptor_idx_从小到大排序
-
-3) 校验proto_id区所有项：
-
-```c++
-struct ProtoId {
- dex::StringIndex shorty_idx_;     // index into string_ids array for shorty descriptor
- dex::TypeIndex return_type_idx_;  // index into type_ids array for return type
- uint16_t pad_;                    // padding = 0
- uint32_t parameters_off_;         // file offset to type_list for parameter types
-};
-```
-
-检查能否根据 parameters_off_ 在offset_to_type_map_里查到相应记录, 并检查所有的参数是否合法
-
-能否根据short_idx_正确decode出字符串表示
-
-检查return_type_idx_是否越界(65535)，能否由其最终正确解析出它的字符串表示形式
-
-检查所有proto_id项是否已根据return_type_idx_, 参数的type_id排序 
-
-4) 校验所有的filed_id：TL; DR
-
-5) 校验所有的method_id：TL; DR
-
-...
+  4) 校验所有的filed_id：TL; DR
+  5) 校验所有的method_id：TL; DR
+  ...
 
 ### <a name="write_vdex"><font color="#333">vdex的生成过程</font></a>
 
-1. vdex文件结构
+####  vdex文件结构
 
   | magic: 4字节 | version: 4字节 | dex[0] | dex[1] | ...  | dex[N] |
   定义见：art/runtime/vdex_file.h
 
-2. 生成过程
+####  生成过程
 
    OatWriter:WriteAndOpenDexFiles()
    -> WriteDexFiles() -> WriteDexFile() -> ZipEntry.extraTo(vdex_file)
    -> WriteVdexHeader()
 
    这一步主流程很简单，就是把apk里的dex文件抽取抽取然后写入到vdex文件里，最后写入vdex版本号和校验和，比较麻烦的是写入文件的时候要做[4字节对齐](https://en.wikipedia.org/wiki/Data_structure_alignment)，所以每次写入一个dex文件都要先设置好文件偏移，这样后面map这个vdex里时候能够提高效率。
-
 
 ### 主流app的dex文件校验耗时:
 
@@ -322,8 +300,8 @@ struct ProtoId {
 | 淘宝           | 7.2.3         | 11.6Mb / 76Mb        | 692毫秒    | 3.641秒              |
 | 今日头条极速版 | 6.1.9         | 4.8Mb / 2.9Mb        | 242毫秒    | 1.899s               |
 
-到9.0上，Vdex结构丰富了点：
-
+### 新版VDEX结构
+到Android 9.0上，vdex结构变的丰富了：
 ```c++
 // VDEX files contain extracted DEX files. The VdexFile class maps the file to
 // memory and provides tools for accessing its individual sections.
@@ -352,10 +330,7 @@ struct ProtoId {
 ```
 
 增加了VerifierDeps和QuickeningInfo，其中VerifierDeps是用于快速校验dex里method合法性的，它是在第一次dex2oat的时候生成，
-
-后面再做dex2oat的时候可以根据这个信息，就不用挨个分析字节码了（虚拟机总是向前兼容的），只要确认依赖的类存在就ok了，详细
-
-可以看：
+后面再做dex2oat的时候可以根据这个信息，就不用挨个分析字节码了（虚拟机总是向前兼容的），只要确认依赖的类存在就ok了，详细可以看：
 
 ```git
 commit ca3c8c33501bf199d6fd0a5db30a27d8e010cb23

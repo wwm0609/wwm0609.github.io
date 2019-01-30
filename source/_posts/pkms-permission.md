@@ -75,11 +75,8 @@ private void grantPermissionsLPw(PackageParser.Package pkg, boolean replace,
 ...
 }
 ```
-
 因为不管是安装一个全新的app，还是更新一个已安装的app，最后都会调用到grantPermissionsLPw这个方法，
-
 这个方法逻辑其实较简洁，就是遍历新app中声明的权限列表，更新已有的权限列表，和gid数组，删除掉已经不再需要的权限和gid
-
 另外可以参考下面三个文件，：
 
 |文件|功能|
@@ -88,19 +85,9 @@ private void grantPermissionsLPw(PackageParser.Package pkg, boolean replace,
 |/frameworks/base/data/etc/platform.xml | 定义权限名称 与 gid 名称的映射关系|
 |/system/core/.../android_filesystem_config.h | 定义uid/gid名称和值的映射|
 
-
-
 **接着，再看下校验app是否拥有某项权限的流程:**
 
-这一步也很简单，如果调用方是个普通app的话，只要检查下这个app的已授予的权限列表里不是包含请求的
-
-权限即可；如果调用方是media，cameraserver，audioserver这类系统用户的话，他们的权限是预先就定好的，
-
-参考/frameworks/base/data/etc/platform.xml，开机时会解析到mSystemPermissions这个map里，所以这时便可
-
-直接从这个map里拿到对应uid拥有的权限列表，如果包含了参数permName，则uid拥有了这个权限；反之，
-
-则表明该uid无此权限。
+这一步也很简单，如果调用方是个普通app的话，只要检查下这个app的已授予的权限列表里不是包含请求的权限即可；如果调用方是media，cameraserver，audioserver这类系统用户的话，他们的权限是预先就定好的，参考/frameworks/base/data/etc/platform.xml，开机时会解析到mSystemPermissions这个map里，所以这时便可直接从这个map里拿到对应uid拥有的权限列表，如果包含了参数permName，则uid拥有了这个权限；反之，则表明该uid无此权限。
 
 ```java
 // 文件位置：frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java
@@ -123,17 +110,13 @@ public int checkUidPermission(String permName, int uid) {
 }
 ```
 
-从上面的代码可以看到，AMS在创建app进程的时候，将app拥有的gids给一并传递给了zygote进程，等zygote fork出子进程
+从上面的代码可以看到，AMS在创建app进程的时候，将app拥有的gids给一并传递给了zygote进程，等zygote fork出子进程后，会通过setgroups系统调用把传过来的gids设置到新的进程上，于是这个新的进程就获得了相应的权限。
 
-后，会通过setgroups系统调用把传过来的gids设置到新的进程上，于是这个新的进程就获得了相应的权限。
+### 其他类型的权限
 
-### 2. 其他类型的权限
+除了基于gid实现的权限控制，还有很多其他的权限的控制，Android没有通过gid来控制，而是让这些权限的owner自己去检验调用方app是否已经被系统授予了这类权限，例如下面获取地理位置信息和打开相机这两个例子；
 
-除了基于gid实现的权限控制，还有很多其他的权限的控制，Android没有通过gid来控制，而是让这些权限的owner自己去检验
-
-调用方app是否已经被系统授予了这类权限，例如下面获取地理位置信息和打开相机这两个例子；
-
-#### 案例1，获取地理位置过程中权限的校验过程
+### 案例1，获取地理位置过程中权限的校验过程
 
 1）通过gps拿到地理位置信息
 
@@ -161,13 +144,9 @@ public Location getLastKnownLocation(String provider) {
 }
 ```
 
-3) LocationManagerService.getLastLocation()首先会验证调用方是否拥有访问位置信息的权限，最终调用到
+1) LocationManagerService.getLastLocation()首先会验证调用方是否拥有访问位置信息的权限，最终调用到
 
-文章一开始介绍的PKMS.checkUidPermission()方法，进行校验，如果调用方app的确拥有此权限，那么就会
-
-进行后续流程，并最终返回gps位置给调用方；否则，就直接返回null。
-
-
+文章一开始介绍的PKMS.checkUidPermission()方法，进行校验，如果调用方app的确拥有此权限，那么就会进行后续流程，并最终返回gps位置给调用方；否则，就直接返回null。
 
 ```
 // frameworks/base/services/core/java/com/android/server/LocationManagerService.java
@@ -210,10 +189,9 @@ private int getAllowedResolutionLevel(int pid, int uid) {
 ```
 
 ContextImpl.checkPermission() → AMS.checkPermission() → AMS.checkComponentPermission() → PKMS.checkUidPermission()
-
 这一系列调用实现都比较简单，不再赘述。
 
-####  案例2，打开相机
+### 案例2，打开相机
 1）Camera.open()的调用流程
 
 ```c++
@@ -291,55 +269,43 @@ static class PermissionController extends IPermissionController.Stub {
 
 AMS.checkPermission() → AMS.checkComponentPermission() → ActivityManager.chceckComponentPersission() → PKMS.checkUidPermission()
 
-### 3. Android 6.0+的变化
+## Android 6.0+的变化
 
-Android 6.0开始引入运行时权限的概念，将系统权限分成了[Normal](https://developer.android.com/guide/topics/permissions/normal-permissions.html)和Dangerous两个大类，其中 [Normal权限](https://developer.android.com/guide/topics/permissions/normal-permissions.html)包含了网络，震动，NFC，指纹，传感器等等，
-
-Dangerous权限包含了读写外置存储，打开相机，蓝牙，定位，短信，电话，联系人等等;
-
-对于Dangerous类的权限，也叫做运行时权限，不会再像以前版本那样安装时系统直接授予app，而是后面使用过程中让用户自己选择是
-
-否要授予app这类权限（终于赶上这方面的大哥iOS了）；
-
+Android 6.0开始引入运行时权限的概念，将系统权限分成了[Normal](https://developer.android.com/guide/topics/permissions/normal-permissions.html)和Dangerous两个大类，其中 [Normal权限](https://developer.android.com/guide/topics/permissions/normal-permissions.html)包含了网络，震动，NFC，指纹，传感器等等，Dangerous权限包含了读写外置存储，打开相机，蓝牙，定位，短信，电话，联系人等等;
+对于Dangerous类的权限，也叫做运行时权限，不会再像以前版本那样安装时系统直接授予app，而是后面使用过程中让用户自己选择是否要授予app这类权限；
 而对于Normal类的权限，跟6.0前的版本上保持一致，只要app的Manifest里声明了权限，在安装的时候便会授予。
+这个新feature给开发者带来一些麻烦，就是每次要使用到危险类的权限时，例如打开相机，开启录音时，都需要先检查自己的app是否拥有了，如果没有就要先请求用户授权，然后才能继续。
 
-不过，这个新feature给开发者带来一些麻烦，就是每次要使用到危险类的权限时，例如打开相机，开启录音时，都需要先检查自己的app是否拥有了，如果没有
+### 检查app是否拥有某些权限
 
-就要先请求用户授权，然后才能继续。
+通过Context.checkSelfPermission(String permission)可以查询到调用方app是否被被用户授予了参数permission，这个方法也是通过ipc最终调用到system_server进程的PackageManagerService.checkUidPermission()方法进行实际的校验工作.
 
-#### 3.1 检查app是否拥有某些权限
+### 请求用户授权 
 
-通过Context.checkSelfPermission(String permission)可以查询到调用方app是否被被用户授予了参数permission，这个方法也是通过ipc最终调用到
-system_server进程的PackageManagerService.checkUidPermission()方法进行实际的校验工作.
+通过Activity.requestPermissions(String[] permissions, int requestCode)请求用户授予参数permissions列表，系统会弹出下图所示的弹框，让用户选择允许或拒绝申请的权限：
 
-#### 3.2 请求用户授权 
-
-通过Activity.requestPermissions(String[] permissions, int requestCode)请求用户授予参数permissions列表，系统会弹出下图所示的弹框，
-让用户选择允许或拒绝申请的权限：
-<center>
 <img src="pkms-permission/permission_grant_dialog.png" width="300" />
-<center/>
 
 当用户选择了拒绝或者允许后，在Activity.onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults）会接受到用户选择的的结果；
-
-请注意上图里面的个"Nerver ask again"选项，如果用户勾选了它，并且点击拒绝按钮，那么后面再调用Activity.requestPermissions()系统就不会再弹出这个框，让用户选择了，而是直接就回调Activity.onRequestPermissionsResult()，参数grantResults里的值全部为PERMISSION_DENIED，framework针对这种情况也提供了Activity.shouldShowRequestPermissionRationale(String permission)这个接口，如果用户之前有拒绝过app请求的这个权限，那么会返回true，
-此时app再申请相同的权限的时可以先显示一个UI，跟用户解释一下需要这个权限的原因，然后再调用Activity.requestPermissions()接口，弹出上图里的对话框；
+请注意上图里面的个"Nerver ask again"选项，如果用户勾选了它，并且点击拒绝按钮，那么后面再调用Activity.requestPermissions()系统就不会再弹出这个框，让用户选择了，而是直接就回调Activity.onRequestPermissionsResult()，参数grantResults里的值全部为PERMISSION_DENIED，framework针对这种情况也提供了Activity.shouldShowRequestPermissionRationale(String permission)这个接口，如果用户之前有拒绝过app请求的这个权限，那么会返回true，此时app再申请相同的权限的时可以先显示一个UI，跟用户解释一下需要这个权限的原因，然后再调用Activity.requestPermissions()接口，弹出上图里的对话框；
 
 如果之前没有申请过这个权限，或者以前申请过并被用户授予了，但是用户后面又在系统设置里收回了这个权限，那么这个接口返回的是false；但是，如果用户之前有选择拒绝，并且勾选了"Nerever ask again"选项的话，shouldShowRequestPermissionRationale()接口返回的就是false了，这时候就比较尴尬了，因为你无法区分之前是不是有申请过这个权限，并且被用户决绝过了 ，只能直接调用Activity.requestPermissions()接口，然后在系统返回请求结果的回调方法里才能了解到用户拒绝了这个权限，并且已经勾选了"Never ask again"选项（因为没有弹出上图里的弹框）-_-||，下次再请求的时候就可以先显示一个解释说明的UI，引导用户去勾选要的权限，再帮用户导航到系统设置界面，让用户去操作。
 
-#### 3.3 案例分析：app运行期间，系统如何实现赋予和回收读写sd卡的权限？
+### 案例分析：app运行期间，系统如何实现赋予和回收读写sd卡的权限？
 
 6.0以前，sd卡文件读写是通过用户组来实现的，6.0上这个权限变成了运行时权限，那系统是如何实现不重启app进程的情况下赋予它读写sd卡文件权限的呢？
-
 当授予一个app读写sd文件权限的时候，大致是下面这个调用流程：
-
 // SystmServer进程
-
-PackageManagerService.grantRuntimePermission() → StorageManagerService.onExternalStoragePolicyChanged() → remountUidExternalStorage() → NativeDaemonConnector.execute("remote_uid") 
+→ PackageManagerService.grantRuntimePermission()
+ → StorageManagerService.onExternalStoragePolicyChanged() 
+  → remountUidExternalStorage() → NativeDaemonConnector.execute("remote_uid") 
 
 // vold进程
-
-→ SocketListener::runListener() → FrameworkListener::onDataAvailable() → FrameworkListener::dispatchCommand() → CommandListener::VolumeCmd::runCommand() → VolumeManager::remountUid()
+→ SocketListener::runListener()
+ → FrameworkListener::onDataAvailable() 
+  → FrameworkListener::dispatchCommand() 
+   → CommandListener::VolumeCmd::runCommand()
+     → VolumeManager::remountUid()
 
 跳过中间步骤，直接看下remountUid()函数的实现:
 

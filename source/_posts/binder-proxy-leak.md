@@ -6,13 +6,10 @@ tags: [binder, mat, hprof]
 ---
 记录一下这个问题的分析过程，主要是分享下Eclipse MAT的使用技巧 ：-)
 
-<!-- more -->
-
 ## 问题现象
 在长时间的稳定性测试后，经常遇到下面2类错误导致的重启，9.0上遇到的比较多的是这个java层报错：
 ```java
 java.lang.AssertionError: Binder ProxyMap has too many entries: 20440 (total), 20272 (uncleared), 20176 (uncleared after GC). BinderProxy leak?
-...
 ```
 而8.0上报的都是下面这个global reference overflow的NE问题：
 ```c++
@@ -20,10 +17,9 @@ pid: 1505, tid: 2994, name: Binder:1505_B  >>> system_server <<<
 signal 6 (SIGABRT), code -6 (SI_TKILL), fault addr --------
 Abort message: 'indirect_reference_table.cc:255] JNI ERROR (app bug): global reference table overflow (max=51200)'
 ```
-本文总结下这2个问题的排查过程
+<!-- more -->
 
-
-问题1：Binder ProxyMap has too many entries
+### 问题1：Binder ProxyMap has too many entries
 这个错误信息十分清晰，BinderProxy实例的数量太多，在执行一次gc后，system_server进程依然有20176个存活的BinderProxy对象。
 
 仔细再看下异常调用栈：
@@ -75,22 +71,17 @@ final class BinderProxy implements IBinder {
 ```
 
 结合代码后，了解到ProxyMap里会存放所有的java层BinderProxy对象，使用的时WeakReference，就是为了内存泄漏，我们知道，当WeakReference自身引用的对象
-
 在没有被其他强引用占用时，WeakReference里的引用的对象就会被虚拟机在下次gc时自动回收掉。
-
 现在既然存在BinderProxy泄漏，那肯定就是system_server进程里某个地方一直在持有着对BinderProxy对象，那么后面排查这个问题，我们就需要解决下面两个问题：
 
 - 这20000多个BinderProxy对象都是哪些进程的Binder对象的代理？
 - 谁一直在强引用着这些BinderProxy对象？
 
-问题2： global reference table overflow
-global reference的详细用途，可以参考[google文档](https://developer.android.com/training/articles/perf-jni#local-and-global-references)，简单来说就是native代码里需要引用java层对象，为了防止被使用的java对象被gc回收掉，需要向虚拟机注册一个全局强引用，
+### 问题2： global reference table overflow
+global reference的详细用途，可以参考[google文档](https://developer.android.com/training/articles/perf-jni#local-and-global-references)，简单来说就是native代码里需要引用java层对象，为了防止被使用的java对象被gc回收掉，需要向虚拟机注册一个全局强引用，这样虚拟机gc时即使发现这个被引用的java对象已经没有其他java层对象持有后，也不会回收这个对象，直到global reference被取消掉，下次gc才可能会回收它；
+还有个local reference，一般是在一个jni方法里，临时使用某个java对象时，先注册一个local reference，目的跟global reference是一样的。
+这儿system_server进程crash的原因是global reference总的数量超过51200了，正常情况下不会有这么多引用，继续看一下这个详细的错误栈：
 
-这样虚拟机gc时即使发现这个被引用的java对象已经没有其他java层对象持有后，也不会回收这个对象，直到global reference被取消掉，下次gc才可能会回收它；
-
-还有个local reference，一般是在一个jni方法里，临时使用某个java对象时，先注册一个local reference，用完后再unregister一下，目的跟global reference是一样的。
-
-这儿system_server进程crash的原因是global reference总的数量超过512000了，正常情况下不会有这么多引用，继续看一下这个详细的错误栈：
 ```c++
 11-19 01:25:50.692  1000 12354 12354 F DEBUG   : backtrace:
 11-19 01:25:50.692  1000 12354 12354 F DEBUG   :     #00 pc 0000000000021f34  /system/lib64/libc.so (abort+116)
@@ -102,6 +93,7 @@ global reference的详细用途，可以参考[google文档](https://developer.a
 11-19 01:25:50.692  1000 12354 12354 F DEBUG   :     #06 pc 00000000001316a0  /system/lib64/libandroid_runtime.so (android_os_BinderProxy_linkToDeath(_JNIEnv*, _jobject*, _jobject*, int)+160)
 ...
 ```
+
 结合BinderProxy.linkToDeath()的代码：
 ```c++
 public class Binder implements IBinder {
@@ -183,7 +175,9 @@ jobject JavaVMExt::AddGlobalRef(Thread* self, ObjPtr<mirror::Object> obj) {
   CheckGlobalRefAllocationTracking();
   return reinterpret_cast<jobject>(ref);
 }
- 
+```
+
+```c++
 // art/runtime/indirect_reference_table.cc
 IndirectRef IndirectReferenceTable::Add(IRTSegmentState previous_state,
                                         ObjPtr<mirror::Object> obj,
@@ -306,7 +300,7 @@ void ReferenceTable::Dump(std::ostream& os, Table& entries) {
         StringAppendF(&extras, " \"%.16s... (%d chars)", utf8.c_str(), s->GetLength());
       }
     } else if (ref->IsReferenceInstance()) {
-        // 指向WeakReference/SoftReference/...对象，则打印被它引用对象类型
+      // 指向WeakReference/SoftReference/...对象，则打印被它引用对象类型
       ObjPtr<mirror::Object> referent = ref->AsReference()->GetReferent();
       if (referent == nullptr) {
         extras = " (referent is null)";
@@ -481,7 +475,7 @@ static const JNINativeMethod gBinderProxyMethods[] = {
      ...
 ```
 
-OK，一切就续，下面就只要make framework && make libart && make lib_android_runtime && 然后把生成的so文件push到手机上对应的位置后，重启手机，稳定性测试一段事件后，连上debugger，手动执行下Debug.dumpReferenceTables()，发现依然没有打印出来的interfaceDescriptor都是空的，回看上面的BinderProxy.getInterfaceDescriptor()和BinderProxy.getInterfaceDescriptorV2()方法，它们实际都是个binder call，需要ipc到远端进程的调用Binder.getInterfaceDescriptorV2()，所以这儿可能的问题就是远端进程可能早就挂了，这个ipc肯定就失败了。
+OK，一切就续，下面就只要make framework && make libart && make lib_android_runtime, 然后把生成的so文件push到手机上对应的位置后，重启手机，稳定性测试一段事件后，连上debugger，手动执行下Debug.dumpReferenceTables()，发现依然没有打印出来的interfaceDescriptor都是空的，回看上面的BinderProxy.getInterfaceDescriptor()和BinderProxy.getInterfaceDescriptorV2()方法，它们实际都是个binder call，需要ipc到远端进程的调用Binder.getInterfaceDescriptorV2()，所以这儿可能的问题就是远端进程可能早就挂了，这个ipc肯定就失败了。
 
 ### 再调整
 
@@ -681,9 +675,8 @@ UID : 1027  count = 21
 ```
 
 都是指向蓝牙（uid=1002）进程的BinderProxy，同时我在系统crash前也打印了system_server挂掉前的heap profile，所以接下来先借助下Eclipse MAT来统计下所有的BinderProxy
-<center>
-<img src="binder-proxy-leak/binder-proxy-instances.png"  width="400px"/>
-</center>
+
+<img src="binder-proxy-leak/binder-proxy-instances.png"  width="600px"/>
 
 *<font color="blue">注：android上通过Debug.dumpHprofData()接口dump下来的hprof文件需要用hprof-con工具手动转一下才能由MAT打开，这个工具位于你下载的android sdk目录，见${android-sdk}/platform-tools/hprof-conv</font>*
 
@@ -702,37 +695,30 @@ SELECT * FROM android.os.BinderProxy s where toString(s.descriptorV2.value) = "c
 ```
 
 有泄漏，即它没有被虚拟机回收，那么必定就有>=1的gc 跟节点还（直接或间接）持有这个被泄露的对象的引用，所以再借助MAT来分析有哪些gc根节点指向这个被泄露的对象：
-<center>
-<img src="binder-proxy-leak/path-to-gc-roots-of-leaked-binder-proxy.png"  width="400px"/>
-<img src="binder-proxy-leak/gc-roots-of-leaked-binder-proxy.png"  width="400px"/>
-</center>
-可以看到这个BinderProxy是被mMiuiApplicationThreads这个SparseArray强引用着，mMiuiApplicationThreads又是被
 
-mMiuiApplicationThreadManager引用，它是mMiuiApplicationThreadManager定义在ProcessManagerService.java里
+<img src="binder-proxy-leak/path-to-gc-roots-of-leaked-binder-proxy.png"  width="600px"/>
+<img src="binder-proxy-leak/gc-roots-of-leaked-binder-proxy.png"  width="600px"/>
 
-mMiuiApplicationThreads这个SparseArray的size是**6143！**。结合代码发现了每个进程的启动的时候会向system_server注册一个
-
-descriptor为IMiuiApplicationThread的BinderProxy对象，主要用于MIUI的长截屏功能而在进程挂掉的时候，却没有从移除掉，所以就
-
-发生了泄漏，详细代码枯燥，此处略，这一块属于进程管理相关的，直接通知相关同学进行修复了。
+可以看到这个BinderProxy是被mMiuiApplicationThreads这个SparseArray强引用着，mMiuiApplicationThreads又是被mMiuiApplicationThreadManager引用，它是mMiuiApplicationThreadManager定义在ProcessManagerService.java里mMiuiApplicationThreads这个SparseArray的size是 **6143！**。
+结合代码发现了每个进程的启动的时候会向system_server注册一个descriptor为IMiuiApplicationThread的BinderProxy对象，主要用于MIUI的长截屏功能而在进程挂掉的时候，却没有从移除掉，所以就发生泄漏，详细代码枯燥，此处略，这一块属于进程管理相关的，直接通知相关同学进行修复了。
 
 继续定位剩余两个泄漏项，流程跟定位IMiuiApplicationThread泄漏的是一样的：
 
-1、 标定一个泄漏的BinderProxy
+1、标定一个泄漏的BinderProxy
 
-![leaked-bluetooth-headset](binder-proxy-leak/leaked-bluetooth-headset.png)
+<img src="binder-proxy-leak/leaked-bluetooth-headset.png"  width="600px"/>
 
 2、查看它的gc roots
 
-![bluetooth-headset-gc-roots](binder-proxy-leak/bluetooth-headset-gc-roots.png)
+<img src="binder-proxy-leak/bluetooth-headset-gc-roots.png"  width="600px"/>
 
 可以看到它被ProcessRecord.connections这个ArraySet引用着，那么下面再看下这个ProcessRecord是表示的哪个进程：
 
-![process-record-connections-gc-roots](binder-proxy-leak/process-record-connections-gc-roots.png)
+<img src="binder-proxy-leak/process-record-connections-gc-roots.png"  width="600px"/>
 
 最后得到：
 
-![abnormal-process-record](binder-proxy-leak/abnormal-process-record.png)
+<img src="binder-proxy-leak/abnormal-process-record.png"  width="600px"/>
 
 **原来是system_server进程的ProcessRecord的问题，注意看connections.mArray的大小，有7749个!**
 

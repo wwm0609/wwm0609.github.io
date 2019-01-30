@@ -9,7 +9,7 @@ Instant App中文翻译即“免安装应用”，当点击一个链接时，类
 
 <!-- more -->
 
-## 如何体验Instant App？
+## 如何体验Instant App
 
 1. 在nexus或pixel 8.0+设备上登录google帐号，进入设置 → Google → Instant apps → 选中之前登录的google帐号 → 系统弹出相关使用协议对话框 → 点击同意
 
@@ -25,19 +25,17 @@ Instant App中文翻译即“免安装应用”，当点击一个链接时，类
  </center>
 
 
-## **如何开发Instant App？**
+## 如何开发Instant App
 
 请参考 [Getting started with Android Instant Apps](https://developer.android.com/topic/instant-apps/getting-started/index.html)，android studio 3.0支持良好，此处略
 
-## **Framework的实现？**
+## Framework的实现
 
-###  **1. 安装流程**
+###  安装流程
 
 在resolveIntent()的地方加了一个断点，然后点击那个带有instant标注的链接，这时chrome没有直接处理这个url，而是把你点击的链接封装成一个intent，通过startActivityIfNeed()调用让系统负责处理它
 
 ![instant-app-install-backtrace](instant-app/instant-app-install-backtrace.png)
-
-
 
 点击evaluate expression那个按钮(上图第一行最后一个按钮)，执行Binder.getCallingUid()可以获取到对端进程的uid为10017，然后通过getPackagesForUid(uid)也可以确认调用就是chrome
 
@@ -116,20 +114,14 @@ private ResolveInfo chooseBestActivity(Intent intent, String resolvedType,
 - 通过获取到的IpackageInstallerSesstion这个binder proxy再通过 **openWrite()** 让服务端创建一个socket pair，并拿到对应的client socket的文件描述符(fd)，接着就是通过这个socket fd
   把intant app的apk文件写入到system server端，system server端会负责接受文件流，并写入到/data/app/下的一个临时文件里；
 - 接下来就是走完PackageManagerServerice的installPackage流程，这里相比普通app有会几点不同：
-
    instant app不能安装在外置存储上
-
    target sdk version 需8.0+，target sandbox version 需2+
-
    安装时不进行dex2oat操作（避免安装时间太长，影响体验），bg dexopt服务也不会对它做优化（存活时间可能比较短，没必要优化） 
-
    不能自定义权限(组)
-
    不能用instant app替换已存在的相同包名的非instant app版本（反过来是可以）
-
    磁盘空间不足时，instant app可能会被移除掉
 
-### **2. 运行instant app**
+### 运行instant app
 
 ```bash
 01-12 07:47:39.436 813-825/system_process I/ActivityManager: START u0 {act=android.intent.action.VIEW cat=[android.intent.category.BROWSABLE] dat=https://jet.com/... flg=0x1c080000 cmp=com.jet.jet.app/com.jet.baselib.activities.RootActivity (has extras)} from uid 10017
@@ -187,30 +179,25 @@ public final int matchData(String type, String scheme, Uri data) {
 
 后续流程参考chooseBestActivity() → findPreferredActivity()，不赘述
 
-### **3. 运行时的限制**
+### 运行时的限制
 
 1. instant app无法查询到非instant app里声明的组件，除非是下面两种情况：
-
-- 显示声明了组件可以被instant app查询到，即标签上增加了"android:visibleToInstantApps=true"
-- 没有显示申明visibleToInstantApps，但是该组件是Activity/Service，且其intent filter包含category_browsable/action_send(to)/action_send_multiple中任意一个
-
+   <pre>
+  1) 显示声明了组件可以被instant app查询到，即标签上增加了"android:visibleToInstantApps=true"；
+  2) 未显示申明visibleToInstantApps，但是该组件是Activity/Service，且其intent filter包含category_browsable/action_send(to)/action_send_multiple中任意一个；
+   </pre>
 2. 非instant app无法查询instant app的组件
-
 3. 目前不支持发送通知
-
 4. 不允许动态加载native/java code
-
 5. 不支持静态注册的receiver，不支持定义或访问其他app的ContentProvider，service不能长期运行
 
-## **小结：**
+## 小结
 
 优点：
-
 1. 无需手动安装app，(**浏览器里**)点击链接即可进入原生app
 2. 基本和普通app一致的开发流程，模块化开发
 
 缺点：
-
 1. 依赖google play store, gms, chrome等服务，政策原因，国内用不了*~_~||*
 2. 目前支持的应用特别少
 3. app开发要维护两个版本的代码
