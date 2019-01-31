@@ -16,3 +16,6 @@ npm i --save gitalk
 npm install hexo-deployer-git --save
 
 echo "all set, you can run 'hexo g && hexo s' to preview your pages"
+
+npm install hexo-all-minifier --save
+npm install gulp -g

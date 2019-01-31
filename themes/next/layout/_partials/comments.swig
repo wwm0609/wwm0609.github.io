@@ -61,10 +61,10 @@
         <div id="gitment-container"></div>
       {% endif %}
     </div>
-  
+
    {% elseif theme.gitalk.enable %}
-   <div id="gitalk-container"></div> 
- 
+   <div id="gitalk-container" style="margin-right:16px;margin-left:8px"></div>
+
   {% elseif theme.valine.appid and theme.valine.appkey %}
     <div class="comments" id="comments">
     </div>
