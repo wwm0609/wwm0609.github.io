@@ -1,7 +1,7 @@
 ---
 layout: layout
 title: system_server BinderProxy相关泄露问题记录
-date: 2019-12-25 13:52:00
+date: 2018-12-25 13:52:00
 tags: [binder, mat, hprof]
 ---
 记录一下这个问题的分析过程，主要是分享下Eclipse MAT的使用技巧 ：-)
