@@ -3,11 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "hexo": {
-    "version": "3.8.0"
+    "version": "3.9.0"
   },
   "dependencies": {
     "gitalk": "^1.5.0",
-    "hexo": "^3.8.0",
+    "hexo": "^3.9.0",
     "hexo-all-minifier": "^0.5.3",
     "hexo-asset-image": "0.0.3",
     "hexo-deployer-git": "^1.0.0",
