@@ -9,4 +9,4 @@ workflow:
 3. do `hexo g && hexo s -p [port]` to preview your new post
 4. git commit -a -m 'msg'; git push origin dev to upload your changes to github
 5. finally, do `hexo clean & hexo g & hexo d` to publish your new pages to github
-6. visit http://wwm0609.github.com to check your posts
+6. visit http://wwm0609.github.io to check your posts
