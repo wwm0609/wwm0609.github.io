@@ -1,0 +1,16 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>dex2oat - 标签 - WWM的记事本</title>
+        <link>https://example.com/tags/dex2oat/</link>
+        <description>dex2oat - 标签 - WWM的记事本</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>wwm0609@gmail.com (wwm)</managingEditor>
+            <webMaster>wwm0609@gmail.com (wwm)</webMaster><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Thu, 21 Dec 2017 00:00:00 &#43;0000</lastBuildDate><atom:link href="https://example.com/tags/dex2oat/" rel="self" type="application/rss+xml" /><item>
+    <title>Android 8.0 VDEX机制简介</title>
+    <link>https://example.com/android-vdex/</link>
+    <pubDate>Thu, 21 Dec 2017 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/android-vdex/</guid>
+    <description><![CDATA[背景 Android 8.0在odex的基础上又引入了vdex机制，目的是为了降低dex2oat时间。 因为当系统ota后，用户自己安装的应用是不会发生任何变]]></description>
+</item>
+</channel>
+</rss>

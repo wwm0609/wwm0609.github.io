@@ -1,0 +1,16 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>use-after-close - 标签 - WWM的记事本</title>
+        <link>https://example.com/tags/use-after-close/</link>
+        <description>use-after-close - 标签 - WWM的记事本</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>wwm0609@gmail.com (wwm)</managingEditor>
+            <webMaster>wwm0609@gmail.com (wwm)</webMaster><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Thu, 07 Nov 2019 00:00:00 &#43;0000</lastBuildDate><atom:link href="https://example.com/tags/use-after-close/" rel="self" type="application/rss+xml" /><item>
+    <title>FdSanitizer 简介</title>
+    <link>https://example.com/fdsan/</link>
+    <pubDate>Thu, 07 Nov 2019 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/fdsan/</guid>
+    <description><![CDATA[背景 在分配file descriptors时, POSIX标准规定了内核必须从所有可被使用的fd数值中最小的一个, 参考alloc_fd，如果代码]]></description>
+</item>
+</channel>
+</rss>

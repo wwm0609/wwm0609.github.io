@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <title>Android PKMS 权限管理介绍 - WWM的记事本</title><meta name="Description" content="This is my cool site"><meta property="og:title" content="Android PKMS 权限管理介绍" />
+<meta property="og:description" content="本文介绍Android PackageManagerService对应用权限的管理 应用安装时PKMS对权限的处理 先回顾下app安装流程： 1 2 3" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://example.com/pkms-permission/" />
+<meta property="og:image" content="https://example.com/snowforest.png"/>
+<meta property="article:published_time" content="2018-03-07T00:00:00+00:00" />
+<meta property="article:modified_time" content="2018-03-07T00:00:00+00:00" /><meta property="og:site_name" content="My cool site" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://example.com/snowforest.png"/>
+
+<meta name="twitter:title" content="Android PKMS 权限管理介绍"/>
+<meta name="twitter:description" content="本文介绍Android PackageManagerService对应用权限的管理 应用安装时PKMS对权限的处理 先回顾下app安装流程： 1 2 3"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://example.com/pkms-permission/" /><link rel="prev" href="https://example.com/instant-app/" /><link rel="next" href="https://example.com/binder-proxy-leak/" /><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css"></noscript><link rel="preload" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Android PKMS 权限管理介绍",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/example.com\/pkms-permission\/"
+        },"image": ["https:\/\/example.com\/images\/Apple-Devices-Preview.png"],"genre": "posts","keywords": "pkms, permission","wordcount":  6025 ,
+        "url": "https:\/\/example.com\/pkms-permission\/","datePublished": "2018-03-07T00:00:00+00:00","dateModified": "2018-03-07T00:00:00+00:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "xxxx","logo": "https:\/\/example.com\/images\/avatar.png"},"author": {
+                "@type": "Person",
+                "name": "wwm"
+            },"description": ""
+    }
+    </script></head>
+    <body data-header-desktop="fixed" data-header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('auto' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'auto' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="https://github.com/wwm0609" rel="noopener noreffer" target="_blank"> Github </a><span class="menu-item delimiter"></span><span class="menu-item search" id="search-desktop">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-desktop">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-desktop" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-desktop" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-desktop">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+                </a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><div class="search-wrapper">
+                    <div class="search mobile" id="search-mobile">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-mobile">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-mobile" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-mobile" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-mobile">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                    <a href="javascript:void(0);" class="search-cancel" id="search-cancel-mobile">
+                        取消
+                    </a>
+                </div><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="https://github.com/wwm0609" title="" rel="noopener noreffer" target="_blank">Github</a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+            </a></div>
+    </div>
+</header><div class="search-dropdown desktop">
+        <div id="search-dropdown-desktop"></div>
+    </div>
+    <div class="search-dropdown mobile">
+        <div id="search-dropdown-mobile"></div>
+    </div><main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animate__animated animate__flipInX">Android PKMS 权限管理介绍</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel="author" class="author"><i class="fas fa-user-circle fa-fw" aria-hidden="true"></i>wwm</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw" aria-hidden="true"></i>&nbsp;<time datetime="2018-03-07">2018-03-07</time>&nbsp;<i class="fas fa-pencil-alt fa-fw" aria-hidden="true"></i>&nbsp;约 6025 字&nbsp;
+                <i class="far fa-clock fa-fw" aria-hidden="true"></i>&nbsp;预计阅读 13 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  data-kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right" aria-hidden="true"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#pkms">应用安装时PKMS对权限的处理</a></li>
+        <li><a href="#heading">其他类型的权限</a></li>
+        <li><a href="#1">案例1，获取地理位置过程中权限的校验过程</a></li>
+        <li><a href="#2">案例2，打开相机</a></li>
+      </ul>
+    </li>
+    <li><a href="#android-60">Android 6.0+的变化</a>
+      <ul>
+        <li><a href="#app">检查app是否拥有某些权限</a></li>
+        <li><a href="#heading-1">请求用户授权</a></li>
+        <li><a href="#appsd">案例分析：app运行期间，系统如何实现赋予和回收读写sd卡的权限？</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>本文介绍Android PackageManagerService对应用权限的管理</p>
+<!-- more -->
+<h3 id="pkms">应用安装时PKMS对权限的处理</h3>
+<p><strong>先回顾下app安装流程</strong>：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-bash" data-lang="bash">→ installPackageLI（安装app，入口函数）
+    → installNewPackageLI（安装一个全新的app，即以前未安装过）
+    → parsePackage <span class="o">(</span>解析AndroidManifest.xml：构建Activity/Service/ContentProvider/BroadcastReceiver运行时对象...<span class="o">)</span>
+    → scanPackageLI <span class="o">(</span>收集证书/校验签名，dex2oat优化，创建app数据目录，释放so文件，分类规整四大组件...<span class="o">)</span>
+    → updateSettingsLI（更新/持久化app信息） 
+         → updatePermissionsLPw（更新权限信息，例如移除一些已经不存在的系统或app自定义的权限）
+              → grantPermissionsLPw（授予app申请的权限）
+    → （发送package add/change广播） 结束 
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// 文件位置：frameworks/base/service/core/java/com/android/server/pm/PackageManagerService.java
+</span><span class="c1"></span><span class="kd">private</span> <span class="kt">void</span> <span class="nf">grantPermissionsLPw</span><span class="o">(</span><span class="n">PackageParser</span><span class="o">.</span><span class="na">Package</span> <span class="n">pkg</span><span class="o">,</span> <span class="kt">boolean</span> <span class="n">replace</span><span class="o">,</span>
+        <span class="n">String</span> <span class="n">packageOfInterest</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kd">final</span> <span class="n">PackageSetting</span> <span class="n">ps</span> <span class="o">=</span> <span class="o">(</span><span class="n">PackageSetting</span><span class="o">)</span> <span class="n">pkg</span><span class="o">.</span><span class="na">mExtras</span><span class="o">;</span>
+    <span class="kd">final</span> <span class="n">GrantedPermissions</span> <span class="n">gp</span> <span class="o">=</span> <span class="n">ps</span><span class="o">.</span><span class="na">sharedUser</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span> <span class="o">?</span> <span class="n">ps</span><span class="o">.</span><span class="na">sharedUser</span> <span class="o">:</span> <span class="n">ps</span><span class="o">;</span>
+    <span class="n">ArraySet</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">origPermissions</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="na">grantedPermissions</span><span class="o">;</span>
+    <span class="kt">boolean</span> <span class="n">changedPermission</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+    <span class="kd">final</span> <span class="kt">int</span> <span class="n">N</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="na">requestedPermissions</span><span class="o">.</span><span class="na">size</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+    <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="n">0</span><span class="o">;</span> <span class="n">i</span><span class="o">&lt;</span><span class="n">N</span><span class="o">;</span> <span class="n">i</span><span class="o">+</span><span class="o">+</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">final</span> <span class="n">String</span> <span class="n">name</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="na">requestedPermissions</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">i</span><span class="o">)</span><span class="o">;</span>
+        <span class="kd">final</span> <span class="kt">boolean</span> <span class="n">required</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="na">requestedPermissionsRequired</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">i</span><span class="o">)</span><span class="o">;</span>
+        <span class="kd">final</span> <span class="n">BasePermission</span> <span class="n">bp</span> <span class="o">=</span> <span class="n">mSettings</span><span class="o">.</span><span class="na">mPermissions</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">name</span><span class="o">)</span><span class="o">;</span>
+        <span class="kd">final</span> <span class="n">String</span> <span class="n">perm</span> <span class="o">=</span> <span class="n">bp</span><span class="o">.</span><span class="na">name</span><span class="o">;</span>
+        <span class="kt">boolean</span> <span class="n">allowed</span><span class="o">;</span>
+        <span class="kt">boolean</span> <span class="n">allowedSig</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+        <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+        <span class="kd">final</span> <span class="kt">int</span> <span class="n">level</span> <span class="o">=</span> <span class="n">bp</span><span class="o">.</span><span class="na">protectionLevel</span> <span class="o">&amp;</span> <span class="n">PermissionInfo</span><span class="o">.</span><span class="na">PROTECTION_MASK_BASE</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">level</span> <span class="o">=</span><span class="o">=</span> <span class="n">PermissionInfo</span><span class="o">.</span><span class="na">PROTECTION_NORMAL</span>
+                <span class="o">|</span><span class="o">|</span> <span class="n">level</span> <span class="o">=</span><span class="o">=</span> <span class="n">PermissionInfo</span><span class="o">.</span><span class="na">PROTECTION_DANGEROUS</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">allowed</span> <span class="o">=</span> <span class="o">(</span><span class="n">required</span> <span class="o">|</span><span class="o">|</span> <span class="n">origPermissions</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="n">perm</span><span class="o">)</span> <span class="c1">// 必须的(即AndroidManifest里没有手动声明required=false) or 之前的版本已经拥有该权限 or 咩有自升级过的系统app
+</span><span class="c1"></span>                    <span class="o">|</span><span class="o">|</span> <span class="o">(</span><span class="n">isSystemApp</span><span class="o">(</span><span class="n">ps</span><span class="o">)</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="o">!</span><span class="n">isUpdatedSystemApp</span><span class="o">(</span><span class="n">ps</span><span class="o">)</span><span class="o">)</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">bp</span><span class="o">.</span><span class="na">packageSetting</span> <span class="o">=</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="c1">// This permission is invalid; skip it.
+</span><span class="c1"></span>            <span class="n">allowed</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">level</span> <span class="o">=</span><span class="o">=</span> <span class="n">PermissionInfo</span><span class="o">.</span><span class="na">PROTECTION_SIGNATURE</span><span class="o">)</span> <span class="o">{</span> <span class="c1">// 如果app申请的权限是签名级保护的，
+</span><span class="c1"></span>            <span class="n">allowed</span> <span class="o">=</span> <span class="n">grantSignaturePermission</span><span class="o">(</span><span class="n">perm</span><span class="o">,</span> <span class="n">pkg</span><span class="o">,</span> <span class="n">bp</span><span class="o">,</span> <span class="n">origPermissions</span><span class="o">)</span><span class="o">;</span> <span class="c1">// 则需要校验定义该权限的app与当前这个app的签名是否相同
+</span><span class="c1"></span>            <span class="k">if</span> <span class="o">(</span><span class="n">allowed</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">allowedSig</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">allowed</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">allowed</span><span class="o">)</span> <span class="o">{</span>
+            <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+                <span class="k">if</span> <span class="o">(</span><span class="o">!</span><span class="n">gp</span><span class="o">.</span><span class="na">grantedPermissions</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="n">perm</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">changedPermission</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+                    <span class="n">gp</span><span class="o">.</span><span class="na">grantedPermissions</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">perm</span><span class="o">)</span><span class="o">;</span>        <span class="c1">// 更新该app已获取到的权限列表
+</span><span class="c1"></span>                    <span class="n">gp</span><span class="o">.</span><span class="na">gids</span> <span class="o">=</span> <span class="n">appendInts</span><span class="o">(</span><span class="n">gp</span><span class="o">.</span><span class="na">gids</span><span class="o">,</span> <span class="n">bp</span><span class="o">.</span><span class="na">gids</span><span class="o">)</span><span class="o">;</span> <span class="c1">// 更新该app可以加入的gid
+</span><span class="c1"></span>                <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="o">!</span><span class="n">ps</span><span class="o">.</span><span class="na">haveGids</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">gp</span><span class="o">.</span><span class="na">gids</span> <span class="o">=</span> <span class="n">appendInts</span><span class="o">(</span><span class="n">gp</span><span class="o">.</span><span class="na">gids</span><span class="o">,</span> <span class="n">bp</span><span class="o">.</span><span class="na">gids</span><span class="o">)</span><span class="o">;</span>
+                <span class="o">}</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">gp</span><span class="o">.</span><span class="na">grantedPermissions</span><span class="o">.</span><span class="na">remove</span><span class="o">(</span><span class="n">perm</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">changedPermission</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+                <span class="n">gp</span><span class="o">.</span><span class="na">gids</span> <span class="o">=</span> <span class="n">removeInts</span><span class="o">(</span><span class="n">gp</span><span class="o">.</span><span class="na">gids</span><span class="o">,</span> <span class="n">bp</span><span class="o">.</span><span class="na">gids</span><span class="o">)</span><span class="o">;</span> <span class="c1">// revoke此项权限
+</span><span class="c1"></span>            <span class="o">}</span>
+<span class="o">.</span><span class="o">.</span><span class="o">.</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>因为不管是安装一个全新的app，还是更新一个已安装的app，最后都会调用到grantPermissionsLPw这个方法，
+这个方法逻辑其实较简洁，就是遍历新app中声明的权限列表，更新已有的权限列表，和gid数组，删除掉已经不再需要的权限和gid
+另外可以参考下面三个文件，：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>android/os/Process.java#getGidForName(name)</td>
+<td>根据gid名称查询gid value</td>
+</tr>
+<tr>
+<td>/frameworks/base/data/etc/platform.xml</td>
+<td>定义权限名称 与 gid 名称的映射关系</td>
+</tr>
+<tr>
+<td>/system/core/&hellip;/android_filesystem_config.h</td>
+<td>定义uid/gid名称和值的映射</td>
+</tr>
+</tbody>
+</table>
+<p><strong>接着，再看下校验app是否拥有某项权限的流程:</strong></p>
+<p>这一步也很简单，如果调用方是个普通app的话，只要检查下这个app的已授予的权限列表里不是包含请求的权限即可；如果调用方是media，cameraserver，audioserver这类系统用户的话，他们的权限是预先就定好的，参考/frameworks/base/data/etc/platform.xml，开机时会解析到mSystemPermissions这个map里，所以这时便可直接从这个map里拿到对应uid拥有的权限列表，如果包含了参数permName，则uid拥有了这个权限；反之，则表明该uid无此权限。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// 文件位置：frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java
+</span><span class="c1"></span><span class="kd">public</span> <span class="kt">int</span> <span class="nf">checkUidPermission</span><span class="o">(</span><span class="n">String</span> <span class="n">permName</span><span class="o">,</span> <span class="kt">int</span> <span class="n">uid</span><span class="o">)</span> <span class="o">{</span>
+    <span class="kd">synchronized</span> <span class="o">(</span><span class="n">mPackages</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">Object</span> <span class="n">obj</span> <span class="o">=</span> <span class="n">mSettings</span><span class="o">.</span><span class="na">getUserIdLPr</span><span class="o">(</span><span class="n">UserHandle</span><span class="o">.</span><span class="na">getAppId</span><span class="o">(</span><span class="n">uid</span><span class="o">)</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">obj</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">GrantedPermissions</span> <span class="n">gp</span> <span class="o">=</span> <span class="o">(</span><span class="n">GrantedPermissions</span><span class="o">)</span><span class="n">obj</span><span class="o">;</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">gp</span><span class="o">.</span><span class="na">grantedPermissions</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="n">permName</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="n">PackageManager</span><span class="o">.</span><span class="na">PERMISSION_GRANTED</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">HashSet</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">perms</span> <span class="o">=</span> <span class="n">mSystemPermissions</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">uid</span><span class="o">)</span><span class="o">;</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">perms</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">perms</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="n">permName</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="n">PackageManager</span><span class="o">.</span><span class="na">PERMISSION_GRANTED</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+    <span class="k">return</span> <span class="n">PackageManager</span><span class="o">.</span><span class="na">PERMISSION_DENIED</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>从上面的代码可以看到，AMS在创建app进程的时候，将app拥有的gids给一并传递给了zygote进程，等zygote fork出子进程后，会通过setgroups系统调用把传过来的gids设置到新的进程上，于是这个新的进程就获得了相应的权限。</p>
+<h3 id="heading">其他类型的权限</h3>
+<p>除了基于gid实现的权限控制，还有很多其他的权限的控制，Android没有通过gid来控制，而是让这些权限的owner自己去检验调用方app是否已经被系统授予了这类权限，例如下面获取地理位置信息和打开相机这两个例子；</p>
+<h3 id="1">案例1，获取地理位置过程中权限的校验过程</h3>
+<p>1）通过gps拿到地理位置信息</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kt">void</span> <span class="nf">getLastKnownGpsLocation</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">LocationManager</span> <span class="n">lm</span> <span class="o">=</span> <span class="o">(</span><span class="n">LocationManager</span><span class="o">)</span> <span class="n">getApplicationContext</span><span class="o">(</span><span class="o">)</span><span class="o">.</span><span class="na">getSystemService</span><span class="o">(</span><span class="n">LOCATION_SERVICE</span><span class="o">)</span><span class="o">;</span>
+    <span class="n">Location</span> <span class="n">location</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="na">getLastKnownLocation</span><span class="o">(</span><span class="n">LocationManager</span><span class="o">.</span><span class="na">GPS_PROVIDER</span><span class="o">)</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>2）ipc进入system_server进程，调用LocationManagerService的getLastLocation()</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">// frameworks/base/location/java/android/location/LocationManager.java
+public Location getLastKnownLocation(String provider) {
+    checkProvider(provider);
+    String packageName = mContext.getPackageName();
+    LocationRequest request = LocationRequest.createFromDeprecatedProvider(
+            provider, 0, 0, true);
+    try {
+        return mService.getLastLocation(request, packageName);
+    } catch (RemoteException e) {
+        throw e.rethrowFromSystemServer();
+    }
+}
+</code></pre></td></tr></table>
+</div>
+</div><ol>
+<li>LocationManagerService.getLastLocation()首先会验证调用方是否拥有访问位置信息的权限，最终调用到</li>
+</ol>
+<p>文章一开始介绍的PKMS.checkUidPermission()方法，进行校验，如果调用方app的确拥有此权限，那么就会进行后续流程，并最终返回gps位置给调用方；否则，就直接返回null。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">// frameworks/base/services/core/java/com/android/server/LocationManagerService.java
+@Override
+public Location getLastLocation(LocationRequest request, String packageName) {
+    ...
+    final int pid = Binder.getCallingPid();
+    final int uid = Binder.getCallingUid();
+    final long identity = Binder.clearCallingIdentity();
+    try {
+        ...
+        if (!reportLocationAccessNoThrow(pid, uid, packageName, allowedResolutionLevel)) {
+            if (D) Log.d(TAG, &#34;not returning last loc for no op app: &#34; +
+                    packageName);
+            return null;
+        }
+...
+}
+ 
+boolean reportLocationAccessNoThrow(
+        int pid, int uid, String packageName, int allowedResolutionLevel) {
+    ...
+    if (getAllowedResolutionLevel(pid, uid) &lt; allowedResolutionLevel) {
+        return false;
+    }
+    return true;
+}
+ 
+private int getAllowedResolutionLevel(int pid, int uid) {
+    if (mContext.checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION,
+            pid, uid) == PackageManager.PERMISSION_GRANTED) {
+        return RESOLUTION_LEVEL_FINE;
+    } else if (mContext.checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            pid, uid) == PackageManager.PERMISSION_GRANTED) {
+        return RESOLUTION_LEVEL_COARSE;
+    } else {
+        return RESOLUTION_LEVEL_NONE;
+    }
+}
+</code></pre></td></tr></table>
+</div>
+</div><p>ContextImpl.checkPermission() → AMS.checkPermission() → AMS.checkComponentPermission() → PKMS.checkUidPermission()
+这一系列调用实现都比较简单，不再赘述。</p>
+<h3 id="2">案例2，打开相机</h3>
+<p>1）Camera.open()的调用流程</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="err">→</span> <span class="n">Camera</span><span class="p">.</span><span class="n">open</span><span class="p">(</span><span class="p">)</span>    <span class="c1">// frameworks/base/core/java/android/hardware/Camera.java
+</span><span class="c1"></span>    <span class="err">→</span> <span class="n">android_hardware_Camera_native_setup</span><span class="p">(</span><span class="p">)</span>    <span class="c1">// frameworks/base/core/jni/android_hardware_Camera.cpp
+</span><span class="c1"></span>        <span class="err">→</span> <span class="n">Camera</span><span class="o">:</span><span class="o">:</span><span class="n">connect</span><span class="p">(</span><span class="p">)</span>    <span class="c1">// frameworks/av/camera/Camera.cpp
+</span><span class="c1"></span>            <span class="err">→</span> <span class="n">CameraBase</span><span class="o">:</span><span class="o">:</span><span class="n">connect</span><span class="p">(</span><span class="p">)</span>    <span class="c1">// frameworks/av/camera/CameraBase.cpp
+</span><span class="c1"></span>                <span class="err">→</span> <span class="n">BpCameraService</span><span class="o">:</span><span class="o">:</span><span class="n">connect</span><span class="p">(</span><span class="p">)</span>    <span class="c1">// frameworks/av/camera/ICameraService.cpp
+</span><span class="c1"></span>                    <span class="err">→</span> <span class="n">BpBinder</span><span class="p">.</span><span class="n">transact</span><span class="p">(</span><span class="p">)</span>    <span class="c1">// frameworks/native/libs/binder/BpBinder.cpp
+</span><span class="c1"></span>                        <span class="err">→</span> <span class="n">CameraService</span><span class="p">.</span><span class="n">onTransact</span><span class="p">(</span><span class="p">)</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// frameworks/av/services/camera/libcameraservice/CameraService.cpp
+</span><span class="c1"></span>
+<span class="n">status_t</span> <span class="n">CameraService</span><span class="o">:</span><span class="o">:</span><span class="n">onTransact</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">code</span><span class="p">,</span> <span class="k">const</span> <span class="n">Parcel</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="n">Parcel</span><span class="o">*</span> <span class="n">reply</span><span class="p">,</span> <span class="kt">uint32_t</span> <span class="n">flags</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Permission checks
+</span><span class="c1"></span>    <span class="k">switch</span> <span class="p">(</span><span class="n">code</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">case</span> <span class="n">BnCameraService</span><span class="o">:</span><span class="o">:</span><span class="nl">CONNECT</span><span class="p">:</span>
+        <span class="k">case</span> <span class="n">BnCameraService</span><span class="o">:</span><span class="o">:</span><span class="nl">CONNECT_PRO</span><span class="p">:</span>
+        <span class="k">case</span> <span class="n">BnCameraService</span><span class="o">:</span><span class="o">:</span><span class="nl">CONNECT_DEVICE</span><span class="p">:</span>
+        <span class="k">case</span> <span class="n">BnCameraService</span><span class="o">:</span><span class="o">:</span><span class="nl">CONNECT_LEGACY</span><span class="p">:</span>
+            <span class="k">const</span> <span class="kt">int</span> <span class="n">pid</span> <span class="o">=</span> <span class="n">getCallingPid</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">const</span> <span class="kt">int</span> <span class="n">self_pid</span> <span class="o">=</span> <span class="n">getpid</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">pid</span> <span class="o">!</span><span class="o">=</span> <span class="n">self_pid</span><span class="p">)</span> <span class="p">{</span>
+                 <span class="c1">// 校验调用方是否拥有打开相机的权限
+</span><span class="c1"></span>                <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">checkCallingPermission</span><span class="p">(</span><span class="n">String16</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">android.permission.CAMERA</span><span class="s">&#34;</span><span class="p">)</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="k">return</span> <span class="n">PERMISSION_DENIED</span><span class="p">;</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+<span class="p">.</span><span class="p">.</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>从上面代码可看到，只有调用方app拥有了打开相机的权限，才会进行后续的初始化操作，否则就直接返回了。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// frameworks/native/libs/binder/IServiceManager.cpp
+</span><span class="c1"></span><span class="k">static</span> <span class="n">String16</span> <span class="nf">_permission</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">permission</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+ 
+<span class="kt">bool</span> <span class="nf">checkPermission</span><span class="p">(</span><span class="k">const</span> <span class="n">String16</span><span class="o">&amp;</span> <span class="n">permission</span><span class="p">,</span> <span class="n">pid_t</span> <span class="n">pid</span><span class="p">,</span> <span class="n">uid_t</span> <span class="n">uid</span><span class="p">)</span>
+<span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">pc</span> <span class="o">!</span><span class="o">=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+            <span class="c1">// ipc调用system_server的PermissionController服务进行校验
+</span><span class="c1"></span>            <span class="kt">bool</span> <span class="n">res</span> <span class="o">=</span> <span class="n">pc</span><span class="o">-</span><span class="o">&gt;</span><span class="n">checkPermission</span><span class="p">(</span><span class="n">permission</span><span class="p">,</span> <span class="n">pid</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">return</span> <span class="n">res</span><span class="p">;</span>
+            <span class="p">}</span>
+            <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+        <span class="p">}</span>
+    	<span class="c1">// 获取PermissionController的binderProxy对象
+</span><span class="c1"></span>        <span class="n">sp</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">&gt;</span> <span class="n">binder</span> <span class="o">=</span> <span class="n">defaultServiceManager</span><span class="p">(</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">checkService</span><span class="p">(</span><span class="n">_permission</span><span class="p">)</span><span class="p">;</span> 
+        <span class="n">pc</span> <span class="o">=</span> <span class="n">interface_cast</span><span class="o">&lt;</span><span class="n">IPermissionController</span><span class="o">&gt;</span><span class="p">(</span><span class="n">binder</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>先获取PermissionController的binder proxy对象，然后ipc最终调用到前面提到的PackManagerService.checkUidPermission方法中。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// frameworks/base/core/java/com/android/server/am/ActivityManagerService.java
+</span><span class="c1"></span><span class="kd">public</span> <span class="kt">void</span> <span class="nf">setSystemProcess</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">try</span> <span class="o">{</span>
+        <span class="n">ServiceManager</span><span class="o">.</span><span class="na">addService</span><span class="o">(</span><span class="s">&#34;permission&#34;</span><span class="o">,</span> <span class="k">new</span> <span class="n">PermissionController</span><span class="o">(</span><span class="k">this</span><span class="o">)</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+<span class="o">}</span>
+ 
+<span class="kd">static</span> <span class="kd">class</span> <span class="nc">PermissionController</span> <span class="kd">extends</span> <span class="n">IPermissionController</span><span class="o">.</span><span class="na">Stub</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">checkPermission</span><span class="o">(</span><span class="n">String</span> <span class="n">permission</span><span class="o">,</span> <span class="kt">int</span> <span class="n">pid</span><span class="o">,</span> <span class="kt">int</span> <span class="n">uid</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">mActivityManagerService</span><span class="o">.</span><span class="na">checkPermission</span><span class="o">(</span><span class="n">permission</span><span class="o">,</span> <span class="n">pid</span><span class="o">,</span>
+                <span class="n">uid</span><span class="o">)</span> <span class="o">=</span><span class="o">=</span> <span class="n">PackageManager</span><span class="o">.</span><span class="na">PERMISSION_GRANTED</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>AMS.checkPermission() → AMS.checkComponentPermission() → ActivityManager.chceckComponentPersission() → PKMS.checkUidPermission()</p>
+<h2 id="android-60">Android 6.0+的变化</h2>
+<p>Android 6.0开始引入运行时权限的概念，将系统权限分成了<a href="https://developer.android.com/guide/topics/permissions/normal-permissions.html" target="_blank" rel="noopener noreffer ">Normal</a>和Dangerous两个大类，其中 <a href="https://developer.android.com/guide/topics/permissions/normal-permissions.html" target="_blank" rel="noopener noreffer ">Normal权限</a>包含了网络，震动，NFC，指纹，传感器等等，Dangerous权限包含了读写外置存储，打开相机，蓝牙，定位，短信，电话，联系人等等;
+对于Dangerous类的权限，也叫做运行时权限，不会再像以前版本那样安装时系统直接授予app，而是后面使用过程中让用户自己选择是否要授予app这类权限；
+而对于Normal类的权限，跟6.0前的版本上保持一致，只要app的Manifest里声明了权限，在安装的时候便会授予。
+这个新feature给开发者带来一些麻烦，就是每次要使用到危险类的权限时，例如打开相机，开启录音时，都需要先检查自己的app是否拥有了，如果没有就要先请求用户授权，然后才能继续。</p>
+<h3 id="app">检查app是否拥有某些权限</h3>
+<p>通过Context.checkSelfPermission(String permission)可以查询到调用方app是否被被用户授予了参数permission，这个方法也是通过ipc最终调用到system_server进程的PackageManagerService.checkUidPermission()方法进行实际的校验工作.</p>
+<h3 id="heading-1">请求用户授权</h3>
+<p>通过Activity.requestPermissions(String[] permissions, int requestCode)请求用户授予参数permissions列表，系统会弹出下图所示的弹框，让用户选择允许或拒绝申请的权限：</p>
+<p><img src="permission_grant_dialog.png" width="300" /></p>
+<p>当用户选择了拒绝或者允许后，在Activity.onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults）会接受到用户选择的的结果；
+请注意上图里面的个&quot;Nerver ask again&quot;选项，如果用户勾选了它，并且点击拒绝按钮，那么后面再调用Activity.requestPermissions()系统就不会再弹出这个框，让用户选择了，而是直接就回调Activity.onRequestPermissionsResult()，参数grantResults里的值全部为PERMISSION_DENIED，framework针对这种情况也提供了Activity.shouldShowRequestPermissionRationale(String permission)这个接口，如果用户之前有拒绝过app请求的这个权限，那么会返回true，此时app再申请相同的权限的时可以先显示一个UI，跟用户解释一下需要这个权限的原因，然后再调用Activity.requestPermissions()接口，弹出上图里的对话框；</p>
+<p>如果之前没有申请过这个权限，或者以前申请过并被用户授予了，但是用户后面又在系统设置里收回了这个权限，那么这个接口返回的是false；但是，如果用户之前有选择拒绝，并且勾选了&quot;Nerever ask again&quot;选项的话，shouldShowRequestPermissionRationale()接口返回的就是false了，这时候就比较尴尬了，因为你无法区分之前是不是有申请过这个权限，并且被用户决绝过了 ，只能直接调用Activity.requestPermissions()接口，然后在系统返回请求结果的回调方法里才能了解到用户拒绝了这个权限，并且已经勾选了&quot;Never ask again&quot;选项（因为没有弹出上图里的弹框）-_-||，下次再请求的时候就可以先显示一个解释说明的UI，引导用户去勾选要的权限，再帮用户导航到系统设置界面，让用户去操作。</p>
+<h3 id="appsd">案例分析：app运行期间，系统如何实现赋予和回收读写sd卡的权限？</h3>
+<p>6.0以前，sd卡文件读写是通过用户组来实现的，6.0上这个权限变成了运行时权限，那系统是如何实现不重启app进程的情况下赋予它读写sd卡文件权限的呢？
+当授予一个app读写sd文件权限的时候，大致是下面这个调用流程：
+// SystmServer进程
+→ PackageManagerService.grantRuntimePermission()
+→ StorageManagerService.onExternalStoragePolicyChanged()
+→ remountUidExternalStorage() → NativeDaemonConnector.execute(&ldquo;remote_uid&rdquo;)</p>
+<p>// vold进程
+→ SocketListener::runListener()
+→ FrameworkListener::onDataAvailable()
+→ FrameworkListener::dispatchCommand()
+→ CommandListener::VolumeCmd::runCommand()
+→ VolumeManager::remountUid()</p>
+<p>跳过中间步骤，直接看下remountUid()函数的实现:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// system/vold/VolumeManager.cpp
+</span><span class="c1"></span><span class="kt">int</span> <span class="n">VolumeManager</span><span class="o">:</span><span class="o">:</span><span class="n">remountUid</span><span class="p">(</span><span class="n">uid_t</span> <span class="n">uid</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">mode</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">LOG</span><span class="p">(</span><span class="n">DEBUG</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">Remounting </span><span class="s">&#34;</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">uid</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> as mode </span><span class="s">&#34;</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">mode</span><span class="p">;</span>
+    <span class="n">DIR</span><span class="o">*</span> <span class="n">dir</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="nc">dirent</span><span class="o">*</span> <span class="n">de</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="n">rootName</span><span class="p">[</span><span class="n">PATH_MAX</span><span class="p">]</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="n">pidName</span><span class="p">[</span><span class="n">PATH_MAX</span><span class="p">]</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">pidFd</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">nsFd</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="nc">stat</span> <span class="n">sb</span><span class="p">;</span>
+    <span class="n">pid_t</span> <span class="n">child</span><span class="p">;</span>
+ 
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">dir</span> <span class="o">=</span> <span class="n">opendir</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">/proc</span><span class="s">&#34;</span><span class="p">)</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">PLOG</span><span class="p">(</span><span class="n">ERROR</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">Failed to opendir</span><span class="s">&#34;</span><span class="p">;</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+ 
+    <span class="c1">// Poke through all running PIDs look for apps running as UID
+</span><span class="c1"></span>    <span class="k">while</span> <span class="p">(</span><span class="p">(</span><span class="n">de</span> <span class="o">=</span> <span class="n">readdir</span><span class="p">(</span><span class="n">dir</span><span class="p">)</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">pidFd</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+        <span class="n">nsFd</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+        <span class="n">pidFd</span> <span class="o">=</span> <span class="n">openat</span><span class="p">(</span><span class="n">dirfd</span><span class="p">(</span><span class="n">dir</span><span class="p">)</span><span class="p">,</span> <span class="n">de</span><span class="o">-</span><span class="o">&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="n">O_RDONLY</span> <span class="o">|</span> <span class="n">O_DIRECTORY</span> <span class="o">|</span> <span class="n">O_CLOEXEC</span><span class="p">)</span><span class="p">;</span>
+        <span class="p">.</span><span class="p">.</span><span class="p">.</span> <span class="c1">//
+</span><span class="c1"></span>        <span class="c1">// We purposefully leave the namespace open across the fork
+</span><span class="c1"></span>        <span class="n">nsFd</span> <span class="o">=</span> <span class="n">openat</span><span class="p">(</span><span class="n">pidFd</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">ns/mnt</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">O_RDONLY</span><span class="p">)</span><span class="p">;</span> <span class="c1">// not O_CLOEXEC
+</span><span class="c1"></span>   
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">child</span> <span class="o">=</span> <span class="n">fork</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// fork一个子vold进程
+</span><span class="c1"></span>            <span class="c1">// 把新fork出的vold进程加入nsFd所指的mount namespace，
+</span><span class="c1"></span>            <span class="c1">// 便于让uid下的进程和这个子vold进程可以共享(mount/unmount)挂载点
+</span><span class="c1"></span>            <span class="k">if</span> <span class="p">(</span><span class="n">setns</span><span class="p">(</span><span class="n">nsFd</span><span class="p">,</span> <span class="n">CLONE_NEWNS</span><span class="p">)</span> <span class="o">!</span><span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> 
+                <span class="n">_exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="p">;</span>
+            <span class="p">}</span>
+ 
+            <span class="n">unmount_tree</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">/storage</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span> <span class="c1">// 卸载当前的/storage挂载点
+</span><span class="c1"></span> 
+            <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">storageSource</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">mode</span> <span class="o">=</span><span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">default</span><span class="s">&#34;</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">storageSource</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">/mnt/runtime/default</span><span class="s">&#34;</span><span class="p">;</span> <span class="c1">// sdcard_rw组用户可读写，owner为root
+</span><span class="c1"></span>            <span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">mode</span> <span class="o">=</span><span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">read</span><span class="s">&#34;</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">storageSource</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">/mnt/runtime/read</span><span class="s">&#34;</span><span class="p">;</span> <span class="c1">// 所有用户可读，owner为root
+</span><span class="c1"></span>            <span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">mode</span> <span class="o">=</span><span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">write</span><span class="s">&#34;</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">storageSource</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">/mnt/runtime/write</span><span class="s">&#34;</span><span class="p">;</span> <span class="c1">// 所有用户可读写，owner为root
+</span><span class="c1"></span>            <span class="p">}</span>
+            <span class="c1">// 绑定/storage到/mnt/runtime/xxxx目录上，即拥有相同的inode
+</span><span class="c1"></span>            <span class="c1">// 然后在/storage上就可以看见/mnt/runtime/xxx/目录里的文件了
+</span><span class="c1"></span>            <span class="k">if</span> <span class="p">(</span><span class="n">TEMP_FAILURE_RETRY</span><span class="p">(</span><span class="n">mount</span><span class="p">(</span><span class="n">storageSource</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">/storage</span><span class="s">&#34;</span><span class="p">,</span>
+                    <span class="nb">NULL</span><span class="p">,</span> <span class="n">MS_BIND</span> <span class="o">|</span> <span class="n">MS_REC</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">)</span><span class="p">)</span> <span class="o">=</span><span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>                 
+                <span class="n">_exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="p">;</span>
+            <span class="p">}</span>
+            <span class="c1">// 给/storage设置slave标识后，当插上外置存储卡时，绑定到这个目录的其他挂载点
+</span><span class="c1"></span>			<span class="c1">// 也可以看到/storage下新挂载的存储
+</span><span class="c1"></span>            <span class="k">if</span> <span class="p">(</span><span class="n">TEMP_FAILURE_RETRY</span><span class="p">(</span><span class="n">mount</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">/storage</span><span class="s">&#34;</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> 
+                    <span class="n">MS_REC</span> <span class="o">|</span> <span class="n">MS_SLAVE</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">)</span><span class="p">)</span> <span class="o">=</span><span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>           
+                <span class="n">_exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="p">;</span>
+            <span class="p">}</span>
+ 
+            <span class="c1">// Mount user-specific symlink helper into place
+</span><span class="c1"></span>            <span class="n">userid_t</span> <span class="n">user_id</span> <span class="o">=</span> <span class="n">multiuser_get_user_id</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span><span class="p">;</span>
+            <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">userSource</span><span class="p">(</span><span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">/mnt/user/%d</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">user_id</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+            <span class="c1">// 绑定/storage/self到/mnt/user/{userid}上，即拥有相同的inode
+</span><span class="c1"></span>            <span class="c1">// 然后就可以在/storage/self/下访问/mnt/user/{userid}/里的文件
+</span><span class="c1"></span>            <span class="k">if</span> <span class="p">(</span><span class="n">TEMP_FAILURE_RETRY</span><span class="p">(</span><span class="n">mount</span><span class="p">(</span><span class="n">userSource</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">/storage/self</span><span class="s">&#34;</span><span class="p">,</span>
+                    <span class="nb">NULL</span><span class="p">,</span> <span class="n">MS_BIND</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">)</span><span class="p">)</span> <span class="o">=</span><span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>                            
+                <span class="n">_exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="p">;</span>
+            <span class="p">}</span>
+ 
+            <span class="n">_exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="p">;</span> <span class="c1">// 子vold进程使命完成，退出
+</span><span class="c1"></span>        <span class="p">}</span>
+    <span class="p">.</span><span class="p">.</span><span class="p">.</span> <span class="c1">// 等待子vold进程结束，错误处理...
+</span><span class="c1"></span><span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>这个函数中，首先遍历/proc目录，找到所有属于参数uid的app进程，依次执行，为了更好的说明问题，这儿用微信作为例子：</p>
+<ol>
+<li>vold进程先fork自身，再新fork出来到vold子进程里，执行setns()调用把自身与微信进程绑定，以共享mount namespace；</li>
+<li>在vold子进程里，卸载掉当前挂载到/storage目录下的磁盘分区(或普通文件目录)，由于跟微信进程共享了mount ns，所以微信进程下也能够看到/storage变成了空目录；</li>
+<li>依然在vold子进程里，根据传入的参数mode，如果用户同意了微信申请磁盘读写权限的请求，那么就会把/storage绑定到/mnt/runtime/write目录上；（而如果是用户在系统设置app里，收回了微信app读写外置存储的的权限，那么ActivityManager会直接结束掉所有微信进程，当走到remountUid的时候，因为没有存活的微信进程了，所以此时remountUid啥都不用做）</li>
+<li>由于Android的多用户机制，要让微信进程正确的看到/sdcard/目录，还需做些额外的操作，先了解下/sdcard目录本身其实是个软链接，指向路径如下：
+/sdcard (symbolic link)→  /storage/self/primary (symbolic link)
+第3步中vold子进程已经相应的给app进程重新挂载好了/storage目录，授予权限是相对于当前用户的，app进程访问的/sdcard目录是也相对与当前用户(userid)的，比如要让默认用户0下的微信进程可以访问到正确的sd卡文件，需要重新绑定/storage/self/目录到/mnt/user/0/上，再看下/sdcard/整个链接路径:
+/sdcard →  /storage/self/primary →  /mnt/user/<strong>0</strong>/primary → /storage/emulated/0 (mount bind) → /mnt/runtime/write/emulated/0，
+于是/sdcard目录就正确的指向了/mnt/runtime/write/emulated/0目录，即微信进程拥有了读写/sdcard/的权限</li>
+</ol>
+<p>参考：<a href="https://lwn.net/Articles/531114/" target="_blank" rel="noopener noreffer ">Namespaces in operation</a></p>
+</div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2018-03-07</span>
+            </div></div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span><a href="javascript:void(0);" title="分享到 Twitter" data-sharer="twitter" data-url="https://example.com/pkms-permission/" data-title="Android PKMS 权限管理介绍" data-hashtags="pkms,permission"><i class="fab fa-twitter fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Facebook" data-sharer="facebook" data-url="https://example.com/pkms-permission/" data-hashtag="pkms"><i class="fab fa-facebook-square fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Hacker News" data-sharer="hackernews" data-url="https://example.com/pkms-permission/" data-title="Android PKMS 权限管理介绍"><i class="fab fa-hacker-news fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Line" data-sharer="line" data-url="https://example.com/pkms-permission/" data-title="Android PKMS 权限管理介绍"><i data-svg-src="https://cdn.jsdelivr.net/npm/simple-icons@7.3.0/icons/line.svg" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 微博" data-sharer="weibo" data-url="https://example.com/pkms-permission/" data-title="Android PKMS 权限管理介绍"><i class="fab fa-weibo fa-fw" aria-hidden="true"></i></a></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw" aria-hidden="true"></i>&nbsp;<a href="/tags/pkms/">pkms</a>,&nbsp;<a href="/tags/permission/">permission</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"><a href="/instant-app/" class="prev" rel="prev" title="Android Instant App简介"><i class="fas fa-angle-left fa-fw" aria-hidden="true"></i>Android Instant App简介</a>
+            <a href="/binder-proxy-leak/" class="next" rel="next" title="system_server BinderProxy相关泄露问题记录">system_server BinderProxy相关泄露问题记录<i class="fas fa-angle-right fa-fw" aria-hidden="true"></i></a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line" itemscope itemtype="http://schema.org/CreativeWork"><i class="far fa-copyright fa-fw" aria-hidden="true"></i><span itemprop="copyrightYear">2017 - 2024</span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw" aria-hidden="true"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw" aria-hidden="true"></i>
+            </a>
+        </div><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/autocomplete.js@0.38.1/dist/autocomplete.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/algoliasearch@4.13.1/dist/algoliasearch-lite.umd.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sharer.js@0.5.1/sharer.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":50},"comment":{},"search":{"algoliaAppID":"PASDMWALPK","algoliaIndex":"index.zh-cn","algoliaSearchKey":"b42948e51daaa93df92381c8e2ac0f93","highlightTag":"em","maxResultLength":10,"noResultsFound":"没有找到结果","snippetLength":50,"type":"algolia"}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

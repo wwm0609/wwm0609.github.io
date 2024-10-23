@@ -1,0 +1,66 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>WWM的记事本</title>
+        <link>https://example.com/</link>
+        <description>This is my cool site</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>wwm0609@gmail.com (wwm)</managingEditor>
+            <webMaster>wwm0609@gmail.com (wwm)</webMaster><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Fri, 17 Apr 2020 00:00:00 &#43;0000</lastBuildDate>
+            <atom:link href="https://example.com/index.xml" rel="self" type="application/rss+xml" />
+        <item>
+    <title>Android Hardware Assisted Address Sanitizer原理简介</title>
+    <link>https://example.com/hwasan/</link>
+    <pubDate>Fri, 17 Apr 2020 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/hwasan/</guid>
+    <description><![CDATA[本文介绍Android上定位native代码野指针/数组越界/栈踩踏的强大武器: Address Sanitizer(asan)和Hardware assisted Address Sanitizer (h]]></description>
+</item>
+<item>
+    <title>FdSanitizer 简介</title>
+    <link>https://example.com/fdsan/</link>
+    <pubDate>Thu, 07 Nov 2019 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/fdsan/</guid>
+    <description><![CDATA[背景 在分配file descriptors时, POSIX标准规定了内核必须从所有可被使用的fd数值中最小的一个, 参考alloc_fd，如果代码]]></description>
+</item>
+<item>
+    <title>art gc相关死锁黑屏问题总结</title>
+    <link>https://example.com/art-jni-critical-deadlock/</link>
+    <pubDate>Fri, 17 May 2019 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/art-jni-critical-deadlock/</guid>
+    <description><![CDATA[背景： 从测试同学那边拿过来两台黑屏的机器，点击电源、屏幕都没有反应，不过还好adb可以链接，有root权限，一番deubgging后，确认表]]></description>
+</item>
+<item>
+    <title>system_server BinderProxy相关泄露问题记录</title>
+    <link>https://example.com/binder-proxy-leak/</link>
+    <pubDate>Tue, 25 Dec 2018 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/binder-proxy-leak/</guid>
+    <description><![CDATA[记录一下这个问题的分析过程，主要是分享下Eclipse MAT的使用技巧 ：-) 问题现象 在长时间的稳定性测试后，经常遇到下面2类错误导致的重启，]]></description>
+</item>
+<item>
+    <title>Android PKMS 权限管理介绍</title>
+    <link>https://example.com/pkms-permission/</link>
+    <pubDate>Wed, 07 Mar 2018 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/pkms-permission/</guid>
+    <description><![CDATA[本文介绍Android PackageManagerService对应用权限的管理 应用安装时PKMS对权限的处理 先回顾下app安装流程： 1 2 3]]></description>
+</item>
+<item>
+    <title>Android Instant App简介</title>
+    <link>https://example.com/instant-app/</link>
+    <pubDate>Thu, 18 Jan 2018 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/instant-app/</guid>
+    <description><![CDATA[Instant App中文翻译即“免安装应用”，当点击一个链接时，类似6.0上引入的App Links功能，但更加强大的是，即便用户还没有安装对应的应，也可]]></description>
+</item>
+<item>
+    <title>Android 8.0 VDEX机制简介</title>
+    <link>https://example.com/android-vdex/</link>
+    <pubDate>Thu, 21 Dec 2017 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/android-vdex/</guid>
+    <description><![CDATA[背景 Android 8.0在odex的基础上又引入了vdex机制，目的是为了降低dex2oat时间。 因为当系统ota后，用户自己安装的应用是不会发生任何变]]></description>
+</item>
+</channel>
+</rss>

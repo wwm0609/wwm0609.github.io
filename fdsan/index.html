@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <title>FdSanitizer 简介 - WWM的记事本</title><meta name="Description" content="This is my cool site"><meta property="og:title" content="FdSanitizer 简介" />
+<meta property="og:description" content="背景 在分配file descriptors时, POSIX标准规定了内核必须从所有可被使用的fd数值中最小的一个, 参考alloc_fd，如果代码" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://example.com/fdsan/" />
+<meta property="og:image" content="https://example.com/snowforest.png"/>
+<meta property="article:published_time" content="2019-11-07T00:00:00+00:00" />
+<meta property="article:modified_time" content="2019-11-07T00:00:00+00:00" /><meta property="og:site_name" content="My cool site" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://example.com/snowforest.png"/>
+
+<meta name="twitter:title" content="FdSanitizer 简介"/>
+<meta name="twitter:description" content="背景 在分配file descriptors时, POSIX标准规定了内核必须从所有可被使用的fd数值中最小的一个, 参考alloc_fd，如果代码"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://example.com/fdsan/" /><link rel="prev" href="https://example.com/art-jni-critical-deadlock/" /><link rel="next" href="https://example.com/hwasan/" /><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css"></noscript><link rel="preload" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "FdSanitizer 简介",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/example.com\/fdsan\/"
+        },"image": ["https:\/\/example.com\/images\/Apple-Devices-Preview.png"],"genre": "posts","keywords": "file descriptor, double-close, use-after-close","wordcount":  4410 ,
+        "url": "https:\/\/example.com\/fdsan\/","datePublished": "2019-11-07T00:00:00+00:00","dateModified": "2019-11-07T00:00:00+00:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "xxxx","logo": "https:\/\/example.com\/images\/avatar.png"},"author": {
+                "@type": "Person",
+                "name": "wwm"
+            },"description": ""
+    }
+    </script></head>
+    <body data-header-desktop="fixed" data-header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('auto' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'auto' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="https://github.com/wwm0609" rel="noopener noreffer" target="_blank"> Github </a><span class="menu-item delimiter"></span><span class="menu-item search" id="search-desktop">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-desktop">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-desktop" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-desktop" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-desktop">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+                </a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><div class="search-wrapper">
+                    <div class="search mobile" id="search-mobile">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-mobile">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-mobile" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-mobile" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-mobile">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                    <a href="javascript:void(0);" class="search-cancel" id="search-cancel-mobile">
+                        取消
+                    </a>
+                </div><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="https://github.com/wwm0609" title="" rel="noopener noreffer" target="_blank">Github</a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+            </a></div>
+    </div>
+</header><div class="search-dropdown desktop">
+        <div id="search-dropdown-desktop"></div>
+    </div>
+    <div class="search-dropdown mobile">
+        <div id="search-dropdown-mobile"></div>
+    </div><main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animate__animated animate__flipInX">FdSanitizer 简介</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel="author" class="author"><i class="fas fa-user-circle fa-fw" aria-hidden="true"></i>wwm</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw" aria-hidden="true"></i>&nbsp;<time datetime="2019-11-07">2019-11-07</time>&nbsp;<i class="fas fa-pencil-alt fa-fw" aria-hidden="true"></i>&nbsp;约 4410 字&nbsp;
+                <i class="far fa-clock fa-fw" aria-hidden="true"></i>&nbsp;预计阅读 9 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  data-kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right" aria-hidden="true"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#heading">背景</a></li>
+    <li><a href="#fd-sanitizer">Fd Sanitizer</a>
+      <ul>
+        <li><a href="#double-close--use-after-close">double-close 或 use-after-close问题的本质</a></li>
+        <li><a href="#unique-fd">unique_fd！</a></li>
+        <li><a href="#fd">自定义fd类型</a>
+          <ul>
+            <li><a href="#zip">zip类型的文件</a></li>
+          </ul>
+        </li>
+        <li><a href="#heading-1">数据库文件</a></li>
+        <li><a href="#fopenfclose">fopen/fclose</a></li>
+        <li><a href="#javafd">java代码里打开的fd</a></li>
+      </ul>
+    </li>
+    <li><a href="#fdan">如何查看进程的fdan记录</a></li>
+    <li><a href="#fdsan">如何启用fdsan</a></li>
+    <li><a href="#heading-2">兼容性问题</a></li>
+    <li><a href="#aosp">Aosp官方介绍</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h2 id="heading">背景</h2>
+<p>在分配file descriptors时, POSIX标准规定了内核必须从所有可被使用的fd数值中最小的一个, 参考<a href="http://opengrok.pt.xiaomi.com/opengrok2/s?refs=__alloc_fd&amp;project=miui-q-aquila-dev" target="_blank" rel="noopener noreffer ">alloc_fd</a>，如果代码里没有正确的处理好fd的open/close等操作，就可能会带来以下2个副作用：</p>
+<ul>
+<li>use-after-close</li>
+<li>double-close</li>
+</ul>
+<!-- more -->
+<p>示例: double-close问题</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="kt">void</span> <span class="nf">thread_one</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">open</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">/dev/null</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">O_RDONLY</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">doWork</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">doWork</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">doSomething</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">thread_two</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">open</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">log</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">O_APPEND</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">foo</span><span class="s">&#34;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">!</span><span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">err</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">write failed!</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>上面的代码可能产生下面的行为，导致线程2写入失败：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// 线程1                                   线程2
+</span><span class="c1"></span><span class="n">open</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">/dev/null</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">O_RDONLY</span><span class="p">)</span> <span class="o">=</span> <span class="mi">123</span>
+<span class="n">close</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1">// during doWork()
+</span><span class="c1"></span>                                          <span class="n">open</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">log</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">APPEND</span><span class="p">)</span> <span class="o">=</span> <span class="mi">123</span>
+<span class="n">close</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span> <span class="o">=</span> <span class="mi">0</span>
+                                          <span class="n">write</span><span class="p">(</span><span class="mi">123</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">foo</span><span class="s">&#34;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="p">(</span><span class="n">EBADF</span><span class="p">)</span>
+                                          <span class="n">err</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">write failed!</span><span class="s">&#34;</span><span class="p">)</span>
+</code></pre></td></tr></table>
+</div>
+</div><h2 id="fd-sanitizer">Fd Sanitizer</h2>
+<p>Aosp在Android 10.0里，引入了一个fdsan机制，在发生前一节描述的异常行为时，可以选择让进程终止执行，并打印出发生错误线程的调用栈，这样开发者可以根据调用栈，快速了解出问题的模块，后面再去修正它。</p>
+<p>先思考一个问题，设计一种检测前面的fd误操作问题的机制，需要考虑哪些东西？</p>
+<ol>
+<li>api向前兼容
+不能修改libc已有的api</li>
+<li>鉴别一个fd的合法性
+我的fd真的是我的吗，我能使用它吗？</li>
+<li>友好的错误提示
+别人用了我的fd，或我用了别人的fd时，如何确认这个fd的拥有者？我们还需要backtrace！</li>
+</ol>
+<h3 id="double-close--use-after-close">double-close 或 use-after-close问题的本质</h3>
+<p>double-close和use-after-close本质上都是使用了一个已经被关闭的fd，只不过这里面有几种不同情况：</p>
+<ol>
+<li>线程1连续对同一个fd关闭2次，那么可能会因为EBADF而导致进程abort</li>
+<li>线程1对同一个fd关闭了&gt;=2次，而如果在第一次和第二次关闭期间，线程2此时刚刚打开一个文件或socket，那么
+就可能出现：线程1的第二次关闭的fd，正好等于线程2新打开的fd，而线程1的第二次关闭操作（意外）错误的把
+线程2创建的fd给关闭了，此后线程2如果对这个fd进行读写等操作就会失败</li>
+<li>线程1关闭了一个fd后，线程2立即新打开了一个fd，如果线程2新打开的fd对应的是一个结构化的文件，例如数据库文件、xml文件等，
+线程1意外的在关闭fd后，又尝试向这个fd写入数据，就有可能线程2操作的文件的结构被破坏！</li>
+</ol>
+<p>我们可以看到问题的核心就是对fd的控制权(ownership)问题：
+当我们对1个fd拥有控制权时，我们期望其别人不能对我们的fd进行操作，反过来也是，当一个fd的控制权在别人那时，也期望我们不会去操作他们的fd！</p>
+<h3 id="unique-fd">unique_fd！</h3>
+<p>类似智能指针(unique_ptr)，用户代码里使用unique_fd，在各个函数间进行参数传递时，也是使用unique_fd来进行，而不是原先的传递raw fd，这样这个fd从open到close，都会有个唯一的unique_fd来标明它的控制权。</p>
+<p>而且因为unique_fd<strong>重载了operator int()</strong>，所以它可以完美兼容已有的libc接口。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="k">class</span> <span class="nc">unique_fd_impl</span> <span class="k">final</span> <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="k">explicit</span> <span class="n">unique_fd_impl</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">)</span> <span class="p">{</span> <span class="n">reset</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span> <span class="p">}</span>
+<span class="o">~</span><span class="n">unique_fd_impl</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span> <span class="n">reset</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">reset</span><span class="p">(</span><span class="kt">int</span> <span class="n">new_value</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="n">reset</span><span class="p">(</span><span class="n">new_value</span><span class="p">,</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">;</span> <span class="p">}</span>
+<span class="kt">void</span> <span class="nf">reset</span><span class="p">(</span><span class="kt">int</span> <span class="n">new_value</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span> <span class="n">previous_tag</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">previous_errno</span> <span class="o">=</span> <span class="n">errno</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">fd_</span> <span class="o">!</span><span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">close</span><span class="p">(</span><span class="n">fd_</span><span class="p">,</span> <span class="k">this</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">fd_</span> <span class="o">=</span> <span class="n">new_value</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">new_value</span> <span class="o">!</span><span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">tag</span><span class="p">(</span><span class="n">new_value</span><span class="p">,</span> <span class="n">previous_tag</span><span class="p">,</span> <span class="k">this</span><span class="p">)</span><span class="p">;</span> <span class="c1">// 对这个fd打tag，即声明控制权
+</span><span class="c1"></span>    <span class="p">}</span>
+    <span class="n">errno</span> <span class="o">=</span> <span class="n">previous_errno</span><span class="p">;</span>
+<span class="p">}</span>
+    
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">Close</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span> <span class="n">addr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kt">uint64_t</span> <span class="n">tag</span> <span class="o">=</span> <span class="n">android_fdsan_create_owner_tag</span><span class="p">(</span><span class="n">ANDROID_FDSAN_OWNER_TYPE_UNIQUE_FD</span><span class="p">,</span>
+                                                    <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="n">android_fdsan_close_with_tag</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">private</span><span class="o">:</span>
+    <span class="kt">int</span> <span class="n">fd_</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">using</span> <span class="n">unique_fd</span> <span class="o">=</span> <span class="n">unique_fd_impl</span><span class="o">&lt;</span><span class="n">DefaultCloser</span><span class="o">&gt;</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>使用方式：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="cp">#</span><span class="cp">include</span> <span class="cpf">&lt;android-base/unique_fd.h&gt;</span><span class="cp">
+</span><span class="cp"></span>
+<span class="kt">void</span> <span class="nf">test</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">path</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">android</span><span class="o">:</span><span class="o">:</span><span class="n">base</span><span class="o">:</span><span class="o">:</span><span class="n">unique_fd</span> <span class="n">fd</span><span class="p">(</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">O_WRONLY</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">foo</span><span class="s">&#34;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="p">;</span>
+    <span class="c1">// close(fd); 无需手动关闭fd
+</span><span class="c1"></span><span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>下面先通过分析unique_fd的代码来一窥fdsan的检测原理：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// bionic/libc/bionic/fdsan.cpp
+</span><span class="c1"></span><span class="k">static</span> <span class="kt">void</span> <span class="nf">tag</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span> <span class="n">old_addr</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span> <span class="n">new_addr</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">uint64_t</span> <span class="n">old_tag</span> <span class="o">=</span> <span class="n">android_fdsan_create_owner_tag</span><span class="p">(</span><span class="n">ANDROID_FDSAN_OWNER_TYPE_UNIQUE_FD</span><span class="p">,</span>
+                                                    <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">old_addr</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">new_tag</span> <span class="o">=</span> <span class="n">android_fdsan_create_owner_tag</span><span class="p">(</span><span class="n">ANDROID_FDSAN_OWNER_TYPE_UNIQUE_FD</span><span class="p">,</span>
+                                                    <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">new_addr</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">android_fdsan_exchange_owner_tag</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">old_tag</span><span class="p">,</span> <span class="n">new_tag</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+
+<span class="kt">uint64_t</span> <span class="nf">android_fdsan_create_owner_tag</span><span class="p">(</span><span class="n">android_fdsan_owner_type</span> <span class="n">type</span><span class="p">,</span> <span class="kt">uint64_t</span> <span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">tag</span> <span class="o">=</span><span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c1">// 高8位用于标记fd类型
+</span><span class="c1"></span>  <span class="kt">uint64_t</span> <span class="n">result</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">type</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="mi">56</span><span class="p">;</span>
+  <span class="c1">// 即00000000,11111111,11111111,11111111,11111111,11111111,11111111,11111111
+</span><span class="c1"></span>  <span class="kt">uint64_t</span> <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="mi">56</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="c1">// 低56位用于标记fd的owner，若owner是unique_fd的话，参考前面的代码，可以知道即取unique_fd地址的低56位
+</span><span class="c1"></span>  <span class="c1">// note: 没有存地址的全部64位，是因为用户空间的变量地址，一般高8～16位一般都是0，
+</span><span class="c1"></span>  <span class="c1">// 高8位于是就可以用来下来存储type, 感兴趣的朋友可以看下linux的进程地址空间分布。
+</span><span class="c1"></span>  <span class="n">result</span> <span class="o">|</span><span class="o">=</span> <span class="n">tag</span> <span class="o">&amp;</span> <span class="n">mask</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+
+
+<span class="k">struct</span> <span class="nc">FdEntry</span> <span class="p">{</span>
+  <span class="n">_Atomic</span><span class="p">(</span><span class="kt">uint64_t</span><span class="p">)</span> <span class="n">close_tag</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">android_fdsan_exchange_owner_tag</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">uint64_t</span> <span class="n">expected_tag</span><span class="p">,</span> <span class="kt">uint64_t</span> <span class="n">new_tag</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">FdEntry</span><span class="o">*</span> <span class="n">fde</span> <span class="o">=</span> <span class="n">GetFdEntry</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">fde</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kt">uint64_t</span> <span class="n">tag</span> <span class="o">=</span> <span class="n">expected_tag</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">atomic_compare_exchange_strong</span><span class="p">(</span><span class="o">&amp;</span><span class="n">fde</span><span class="o">-</span><span class="o">&gt;</span><span class="n">close_tag</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">tag</span><span class="p">,</span> <span class="n">new_tag</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">fdsan_error</span><span class="p">(</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">failed to exchange ownership of file descriptor: fd %d is </span><span class="s">&#34;</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">, was expected to be owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span><span class="p">,</span>
+          <span class="n">fd</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_type</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_value</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="p">,</span>
+          <span class="n">android_fdsan_get_tag_type</span><span class="p">(</span><span class="n">expected_tag</span><span class="p">)</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_value</span><span class="p">(</span><span class="n">expected_tag</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="o">!</span><span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">fdsan_error</span><span class="p">(</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">failed to exchange ownership of file descriptor: fd %d is </span><span class="s">&#34;</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">unowned, was expected to be owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span><span class="p">,</span>
+          <span class="n">fd</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_type</span><span class="p">(</span><span class="n">expected_tag</span><span class="p">)</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_value</span><span class="p">(</span><span class="n">expected_tag</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">fdsan_error</span><span class="p">(</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">failed to exchange ownership of file descriptor: fd %d is </span><span class="s">&#34;</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">, was expected to be unowned</span><span class="s">&#34;</span><span class="p">,</span>
+          <span class="n">fd</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_type</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="p">,</span> <span class="n">android_fdsan_get_tag_value</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>流程很简单，以上创建unique_fd时的tag操作系列调用，就是对fd控制权记录的检查和更新：
+unique_fd创建的时候，对传入的参数fd进行检查，如果ownership不匹配，便会输出warning日志或abort（可配置）；
+同样的，unique_fd销毁时，也会检查内部保存的fd的控制权是否依然还属于当前的unique_fd，如果是，则可以将其关闭；
+如果控制权丢失了，那么通过fdsan_error打印相应的错误信息，并根据配置再采取是否需要终止当前进程的操作。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// bionic/libc/bionic/fdsan.cpp
+</span><span class="c1"></span><span class="kt">int</span> <span class="nf">android_fdsan_close_with_tag</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">uint64_t</span> <span class="n">expected_tag</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">FdEntry</span><span class="o">*</span> <span class="n">fde</span> <span class="o">=</span> <span class="n">GetFdEntry</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">fde</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">___close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kt">uint64_t</span> <span class="n">tag</span> <span class="o">=</span> <span class="n">expected_tag</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">atomic_compare_exchange_strong</span><span class="p">(</span><span class="o">&amp;</span><span class="n">fde</span><span class="o">-</span><span class="o">&gt;</span><span class="n">close_tag</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">tag</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">expected_type</span> <span class="o">=</span> <span class="n">android_fdsan_get_tag_type</span><span class="p">(</span><span class="n">expected_tag</span><span class="p">)</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">expected_owner</span> <span class="o">=</span> <span class="n">android_fdsan_get_tag_value</span><span class="p">(</span><span class="n">expected_tag</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">actual_type</span> <span class="o">=</span> <span class="n">android_fdsan_get_tag_type</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="p">;</span>
+    <span class="kt">uint64_t</span> <span class="n">actual_owner</span> <span class="o">=</span> <span class="n">android_fdsan_get_tag_value</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">fdsan_error</span><span class="p">(</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">attempted to close file descriptor %d, </span><span class="s">&#34;</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">expected to be owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">, actually owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span><span class="p">,</span>
+          <span class="n">fd</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">,</span> <span class="n">expected_owner</span><span class="p">,</span> <span class="n">actual_type</span><span class="p">,</span> <span class="n">actual_owner</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="o">!</span><span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">fdsan_error</span><span class="p">(</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">attempted to close file descriptor %d, </span><span class="s">&#34;</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">expected to be owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">, actually unowned</span><span class="s">&#34;</span><span class="p">,</span>
+          <span class="n">fd</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">,</span> <span class="n">expected_owner</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">tag</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">fdsan_error</span><span class="p">(</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">attempted to close file descriptor %d, </span><span class="s">&#34;</span>
+          <span class="sa"></span><span class="s">&#34;</span><span class="s">expected to be unowned, actually owned by %s 0x%</span><span class="s">&#34;</span> <span class="n">PRIx64</span><span class="p">,</span>
+          <span class="n">fd</span><span class="p">,</span> <span class="n">actual_type</span><span class="p">,</span> <span class="n">actual_owner</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="c1">// 如果fd的控制权没有问题，就可以正常关闭这个fd了
+</span><span class="c1"></span>  <span class="kt">int</span> <span class="n">rc</span> <span class="o">=</span> <span class="n">___close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+  <span class="c1">// 而如果关闭fd时出错了，那这个fd要么一开始就不是一个合法的fd，或者它已经被关闭了
+</span><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="n">expected_tag</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">rc</span> <span class="o">=</span><span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">errno</span> <span class="o">=</span><span class="o">=</span> <span class="n">EBADF</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">fdsan_error</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">double-close of file descriptor %d detected</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="n">rc</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>通过分析以上的关键代码，可以发现fdsan本身是很简洁的，我们已经基本掌握了fdsan是如何通过unique_fd这个工具类来对fd控制权的创建和监控的。</p>
+<h3 id="fd">自定义fd类型</h3>
+<p>自定义fd类型主要是为了便于详细区分不同模块间创建的fd，例如zip文件的fd，sqlite3的fd，java代码里的FileInputStream和FileOutputStream等，下面看一下这几类fd的控制权是如何创建和管理的。</p>
+<h4 id="zip">zip类型的文件</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// system/core/libziparchive/zip_archive.cc
+</span><span class="c1"></span><span class="n">ZipArchive</span><span class="o">:</span><span class="o">:</span><span class="n">ZipArchive</span><span class="p">(</span><span class="k">const</span> <span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">assume_ownership</span><span class="p">)</span>
+    <span class="o">:</span> <span class="n">mapped_zip</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">close_file</span><span class="p">(</span><span class="n">assume_ownership</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">directory_offset</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">central_directory</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">directory_map</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">num_entries</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">hash_table_size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="p">,</span>
+      <span class="n">hash_table</span><span class="p">(</span><span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">assume_ownership</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// 如果调用方明确了此fd由libzip自行管理
+</span><span class="c1"></span>    <span class="n">android_fdsan_exchange_owner_tag</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">GetOwnerTag</span><span class="p">(</span><span class="k">this</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kt">uint64_t</span> <span class="nf">GetOwnerTag</span><span class="p">(</span><span class="k">const</span> <span class="n">ZipArchive</span><span class="o">*</span> <span class="n">archive</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">android_fdsan_create_owner_tag</span><span class="p">(</span><span class="n">ANDROID_FDSAN_OWNER_TYPE_ZIPARCHIVE</span><span class="p">,</span>
+                                        <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">archive</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">ZipArchive</span><span class="o">:</span><span class="o">:</span><span class="o">~</span><span class="n">ZipArchive</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">close_file</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">mapped_zip</span><span class="p">.</span><span class="n">GetFileDescriptor</span><span class="p">(</span><span class="p">)</span> <span class="o">&gt;</span><span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">android_fdsan_close_with_tag</span><span class="p">(</span><span class="n">mapped_zip</span><span class="p">.</span><span class="n">GetFileDescriptor</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">GetOwnerTag</span><span class="p">(</span><span class="k">this</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">free</span><span class="p">(</span><span class="n">hash_table</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="heading-1">数据库文件</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// external/sqlite/dist/sqlite3.c
+</span><span class="c1"></span><span class="k">static</span> <span class="kt">int</span> <span class="nf">robust_open</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">z</span><span class="p">,</span> <span class="kt">int</span> <span class="n">f</span><span class="p">,</span> <span class="n">mode_t</span> <span class="n">m</span><span class="p">)</span><span class="p">{</span>
+  <span class="kt">int</span> <span class="n">fd</span><span class="p">;</span>
+  <span class="n">mode_t</span> <span class="n">m2</span> <span class="o">=</span> <span class="n">m</span> <span class="o">?</span> <span class="nl">m</span> <span class="p">:</span> <span class="n">SQLITE_DEFAULT_FILE_PERMISSIONS</span><span class="p">;</span>
+  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="p">{</span>
+<span class="cp">#</span><span class="cp">if defined(O_CLOEXEC)</span><span class="cp">
+</span><span class="cp"></span>    <span class="n">fd</span> <span class="o">=</span> <span class="n">osOpen</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">f</span><span class="o">|</span><span class="n">O_CLOEXEC</span><span class="p">,</span><span class="n">m2</span><span class="p">)</span><span class="p">;</span>
+<span class="cp">#</span><span class="cp">else</span><span class="cp">
+</span><span class="cp"></span>    <span class="n">fd</span> <span class="o">=</span> <span class="n">osOpen</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">f</span><span class="p">,</span><span class="n">m2</span><span class="p">)</span><span class="p">;</span>
+<span class="cp">#</span><span class="cp">endif</span><span class="cp">
+</span><span class="cp"></span><span class="p">.</span><span class="p">.</span><span class="p">.</span>
+<span class="cp">#</span><span class="cp">if defined(__BIONIC__) &amp;&amp; __ANDROID_API__ &gt;= __ANDROID_API_Q__</span><span class="cp">
+</span><span class="cp"></span>    <span class="kt">uint64_t</span> <span class="n">tag</span> <span class="o">=</span> <span class="n">android_fdsan_create_owner_tag</span><span class="p">(</span>
+        <span class="n">ANDROID_FDSAN_OWNER_TYPE_SQLITE</span><span class="p">,</span> <span class="n">fd</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">android_fdsan_exchange_owner_tag</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span><span class="p">;</span>
+<span class="cp">#</span><span class="cp">endif</span><span class="cp">
+</span><span class="cp"></span>  <span class="p">}</span>
+  <span class="k">return</span> <span class="n">fd</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">robust_close</span><span class="p">(</span><span class="n">unixFile</span> <span class="o">*</span><span class="n">pFile</span><span class="p">,</span> <span class="kt">int</span> <span class="n">h</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lineno</span><span class="p">)</span><span class="p">{</span>
+<span class="cp">#</span><span class="cp">if defined(__BIONIC__) &amp;&amp; __ANDROID_API__ &gt;= __ANDROID_API_Q__</span><span class="cp">
+</span><span class="cp"></span>  <span class="kt">uint64_t</span> <span class="n">tag</span> <span class="o">=</span> <span class="n">android_fdsan_create_owner_tag</span><span class="p">(</span>
+      <span class="n">ANDROID_FDSAN_OWNER_TYPE_SQLITE</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">if</span><span class="p">(</span> <span class="n">android_fdsan_close_with_tag</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span> <span class="p">)</span><span class="p">{</span>
+<span class="cp">#</span><span class="cp">else</span><span class="cp">
+</span><span class="cp"></span>  <span class="k">if</span><span class="p">(</span> <span class="n">osClose</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="p">)</span><span class="p">{</span>
+<span class="cp">#</span><span class="cp">endif</span><span class="cp">
+</span><span class="cp"></span>    <span class="n">unixLogErrorAtLine</span><span class="p">(</span><span class="n">SQLITE_IOERR_CLOSE</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">close</span><span class="s">&#34;</span><span class="p">,</span>
+                       <span class="n">pFile</span> <span class="o">?</span> <span class="n">pFile</span><span class="o">-</span><span class="o">&gt;</span><span class="nl">zPath</span> <span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="n">lineno</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="fopenfclose">fopen/fclose</h3>
+<p>请参考bionic/libc/stdio/stdio.cpp#__FILE_close，不再详细描述</p>
+<h3 id="javafd">java代码里打开的fd</h3>
+<ol>
+<li>ParcelFileDescriptor</li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">ParcelFileDescriptor</span> <span class="kd">implements</span> <span class="n">Parcelable</span><span class="o">,</span> <span class="n">Closeable</span> <span class="o">{</span>
+    <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+        <span class="kd">public</span> <span class="nf">ParcelFileDescriptor</span><span class="o">(</span><span class="n">FileDescriptor</span> <span class="n">fd</span><span class="o">,</span> <span class="n">FileDescriptor</span> <span class="n">commChannel</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">mFd</span> <span class="o">=</span> <span class="n">fd</span><span class="o">;</span>
+        <span class="c1">// 1. 通过jni调用前面的fdsan api设置这个fd的owner, 且将owner信息存储到FileDescriptor.ownerId变量里
+</span><span class="c1"></span>        <span class="n">IoUtils</span><span class="o">.</span><span class="na">setFdOwner</span><span class="o">(</span><span class="n">mFd</span><span class="o">,</span> <span class="k">this</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+    <span class="o">}</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">close</span><span class="o">(</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+        <span class="n">closeWithStatus</span><span class="o">(</span><span class="n">Status</span><span class="o">.</span><span class="na">OK</span><span class="o">,</span> <span class="kc">null</span><span class="o">)</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">private</span> <span class="kt">void</span> <span class="nf">closeWithStatus</span><span class="o">(</span><span class="kt">int</span> <span class="n">status</span><span class="o">,</span> <span class="n">String</span> <span class="n">msg</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">mClosed</span><span class="o">)</span> <span class="k">return</span><span class="o">;</span>
+        <span class="n">mClosed</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">mGuard</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">mGuard</span><span class="o">.</span><span class="na">close</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="c1">// Status MUST be sent before closing actual descriptor
+</span><span class="c1"></span>        <span class="n">writeCommStatusAndClose</span><span class="o">(</span><span class="n">status</span><span class="o">,</span> <span class="n">msg</span><span class="o">)</span><span class="o">;</span>
+        <span class="n">IoUtils</span><span class="o">.</span><span class="na">closeQuietly</span><span class="o">(</span><span class="n">mFd</span><span class="o">)</span><span class="o">;</span> <span class="c1">// 2. 调用IoUtils工具类关闭这个fd
+</span><span class="c1"></span>        <span class="n">releaseResources</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">final</span> <span class="kd">class</span> <span class="nc">IoUtils</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">close</span><span class="o">(</span><span class="n">FileDescriptor</span> <span class="n">fd</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+        <span class="n">IoBridge</span><span class="o">.</span><span class="na">closeAndSignalBlockedThreads</span><span class="o">(</span><span class="n">fd</span><span class="o">)</span><span class="o">;</span> <span class="c1">// 3. 代理到IoBridge进行关闭
+</span><span class="c1"></span>    <span class="o">}</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">setFdOwner</span><span class="o">(</span><span class="nd">@NonNull</span> <span class="n">FileDescriptor</span> <span class="n">fd</span><span class="o">,</span> <span class="nd">@NonNull</span> <span class="n">Object</span> <span class="n">owner</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kt">long</span> <span class="n">previousOwnerId</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="na">getOwnerId$</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">previousOwnerId</span> <span class="o">!</span><span class="o">=</span> <span class="n">FileDescriptor</span><span class="o">.</span><span class="na">NO_OWNER</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="n">IllegalStateException</span><span class="o">(</span><span class="s">&#34;Attempted to take ownership of already-owned &#34;</span> <span class="o">+</span>
+                                            <span class="s">&#34;FileDescriptor&#34;</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span>
+
+        <span class="kt">long</span> <span class="n">ownerId</span> <span class="o">=</span> <span class="n">generateFdOwnerId</span><span class="o">(</span><span class="n">owner</span><span class="o">)</span><span class="o">;</span>
+        <span class="n">fd</span><span class="o">.</span><span class="na">setOwnerId$</span><span class="o">(</span><span class="n">ownerId</span><span class="o">)</span><span class="o">;</span>
+
+        <span class="c1">// Set the file descriptor&#39;s owner ID, aborting if the previous value isn&#39;t as expected.
+</span><span class="c1"></span>        <span class="n">Libcore</span><span class="o">.</span><span class="na">os</span><span class="o">.</span><span class="na">android_fdsan_exchange_owner_tag</span><span class="o">(</span><span class="n">fd</span><span class="o">,</span> <span class="n">previousOwnerId</span><span class="o">,</span> <span class="n">ownerId</span><span class="o">)</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">final</span> <span class="kd">class</span> <span class="nc">IoBridge</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">closeAndSignalBlockedThreads</span><span class="o">(</span><span class="n">FileDescriptor</span> <span class="n">fd</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+        <span class="c1">// fd is invalid after we call release.
+</span><span class="c1"></span>        <span class="n">FileDescriptor</span> <span class="n">oldFd</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="na">release$</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="n">Libcore</span><span class="o">.</span><span class="na">os</span><span class="o">.</span><span class="na">close</span><span class="o">(</span><span class="n">oldFd</span><span class="o">)</span><span class="o">;</span> <span class="c1">// Libcore.os.close实际由libcore.io.Linux.close这个native方法实现
+</span><span class="c1"></span>    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>libcore.io.Linux.close方法的实现：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-cpp" data-lang="cpp"><span class="c1">// libcore/luni/src/main/native/libcore_io_Linux.cpp
+</span><span class="c1"></span><span class="k">static</span> <span class="kt">void</span> <span class="nf">Linux_close</span><span class="p">(</span><span class="n">JNIEnv</span><span class="o">*</span> <span class="n">env</span><span class="p">,</span> <span class="n">jobject</span><span class="p">,</span> <span class="n">jobject</span> <span class="n">javaFd</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Get the FileDescriptor&#39;s &#39;fd&#39; field and clear it.
+</span><span class="c1"></span>  <span class="c1">// We need to do this before we can throw an IOException (http://b/3222087).
+</span><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="n">javaFd</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">jniThrowNullPointerException</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">null fd</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">return</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">jniGetFDFromFileDescriptor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">javaFd</span><span class="p">)</span><span class="p">;</span>
+  <span class="n">jniSetFileDescriptorOfFD</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">javaFd</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="p">;</span>
+
+  <span class="n">jlong</span> <span class="n">ownerId</span> <span class="o">=</span> <span class="n">jniGetOwnerIdFromFileDescriptor</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">javaFd</span><span class="p">)</span><span class="p">;</span> <span class="c1">// 通过jni获取到FileDescriptor.mOwnerId成员变量
+</span><span class="c1"></span>
+  <span class="c1">// Close with bionic&#39;s fd ownership tracking (which returns 0 in the case of EINTR).
+</span><span class="c1"></span>  <span class="n">throwIfMinusOne</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">close</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">android_fdsan_close_with_tag</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">ownerId</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><ol start="2">
+<li>FileInputStream &amp; FileOutputStream
+跟ParcelableFileDescriptor的实现类似，不再详述</li>
+<li>PlainSocketImpl &amp;  AbstractPlainDatagramSocketImpl
+略</li>
+<li>RandomAccessFile
+略</li>
+</ol>
+<h2 id="fdan">如何查看进程的fdan记录</h2>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-bash" data-lang="bash">$ adb shell 
+cepheus:/ <span class="c1"># debuggerd `pidof system_server`</span>
+...
+    fd 106: anon_inode:<span class="o">[</span>eventfd<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70c672a8f4<span class="o">)</span>
+    fd 107: anon_inode:<span class="o">[</span>eventpoll<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70c672a94c<span class="o">)</span>
+    fd 108: anon_inode:<span class="o">[</span>eventpoll<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70d027f6ec<span class="o">)</span>
+    fd 109: anon_inode:<span class="o">[</span>eventfd<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70c672c6b4<span class="o">)</span>
+    fd 110: anon_inode:<span class="o">[</span>eventpoll<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70c672c70c<span class="o">)</span>
+    fd 111: socket:<span class="o">[</span>582031<span class="o">]</span> <span class="o">(</span>unowned<span class="o">)</span>
+    fd 112: anon_inode:<span class="o">[</span>eventfd<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70d027fa14<span class="o">)</span>
+    fd 113: anon_inode:<span class="o">[</span>eventpoll<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70d027fa6c<span class="o">)</span>
+    fd 114: /dev/cpuset/foreground/tasks <span class="o">(</span>owned by unique_fd 0x70dd5a4ad0<span class="o">)</span>
+    fd 115: /system/priv-app/SettingsProvider/SettingsProvider.apk <span class="o">(</span>owned by ZipArchive 0x70dd59f100<span class="o">)</span>
+    fd 116: anon_inode:<span class="o">[</span>eventfd<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70c672ca34<span class="o">)</span>
+    fd 117: anon_inode:<span class="o">[</span>eventpoll<span class="o">]</span> <span class="o">(</span>owned by unique_fd 0x70c672ca8c<span class="o">)</span>
+    fd 118: /dev/ashmem <span class="o">(</span>unowned<span class="o">)</span>
+...
+</code></pre></td></tr></table>
+</div>
+</div><h2 id="fdsan">如何启用fdsan</h2>
+<p>fdsan在Q上是默认启用的，只不过在遇到fd误操作问题时，预设的行为仅是打印一些警示日志。
+比较让人高兴的是，fdsan也定义了不同的安全级别：</p>
+<ul>
+<li>disabled：禁用</li>
+<li>warn-once：只在第一次打印一条警告日志，并在/data/tombstone/目录下生成异常进程的调用栈</li>
+<li>warn-always：跟warn-once一样，只不过每次出现fd误操作都会打印警告日志和生成tombstone文件</li>
+<li>fatal：abort进程，并生成tombstone文件</li>
+</ul>
+<p>fd也开放了对应的api可以让我们去调整一个进程在遇到此类异常时的行为：<code>android_fdsan_set_error_level</code> &amp; <code>android_fdsan_get_error_level</code>，这样可以配置进程在遇到此类错误时，选择立即abort进程，并配置生成core文件，然后就可以愉快的去debug了！</p>
+<h2 id="heading-2">兼容性问题</h2>
+<p>由于fdsan是在Q上libc里才引入的机制，对于Android旧版本是没有做支持的，而且我也check了一下20.0.5594570版的ndk，也没有把unique_fd工具类给开发出来，这对于系统开发人员到没有太大影响，但对于app开发，就需要自己实现一个unique_fd类，另外老版本Android系统上并没有这些fdsan api，我自己也写了一个<a href="https://github.com/wwm0609/unique_fd_compat" target="_blank" rel="noopener noreffer ">unique_fd_compat</a>类，用来解决编译问题，仅供参考。</p>
+<p>另外一个小tip：libc里预定义的fd owner类型比较少：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// bionic/libc/include/android/fdsan.h
+</span><span class="c1"></span><span class="k">enum</span> <span class="nc">android_fdsan_owner_type</span> <span class="p">{</span>
+ <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+  <span class="cm">/* android::base::unique_fd */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_UNIQUE_FD</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+
+  <span class="cm">/* sqlite-owned file descriptors */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_SQLITE</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+
+  <span class="cm">/* java.io.FileInputStream */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_FILEINPUTSTREAM</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+
+  <span class="cm">/* java.io.FileOutputStream */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_FILEOUTPUTSTREAM</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
+
+  <span class="cm">/* java.io.RandomAccessFile */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_RANDOMACCESSFILE</span> <span class="o">=</span> <span class="mi">7</span><span class="p">,</span>
+
+  <span class="cm">/* android.os.ParcelFileDescriptor */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_PARCELFILEDESCRIPTOR</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+
+  <span class="cm">/* java.net.SocketImpl */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_SOCKETIMPL</span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
+
+  <span class="cm">/* libziparchive&#39;s ZipArchive */</span>
+  <span class="n">ANDROID_FDSAN_OWNER_TYPE_ZIPARCHIVE</span> <span class="o">=</span> <span class="mi">12</span><span class="p">,</span>
+<span class="p">}</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>但从前面的分析，我们发现，其实它是可以支持到255个不同类型的，这样的话在我们自己实现的unique_fd里就可以做到支持不同模块设置不同的子类型，例如audio，video模块可以各自预设不同的子类型，以便于出现问题时快速区分。</p>
+<h2 id="aosp">Aosp官方介绍</h2>
+<p><a href="https://android.googlesource.com/platform/bionic/+/master/docs/fdsan.md">https://android.googlesource.com/platform/bionic/+/master/docs/fdsan.md</a></p>
+</div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2019-11-07</span>
+            </div></div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span><a href="javascript:void(0);" title="分享到 Twitter" data-sharer="twitter" data-url="https://example.com/fdsan/" data-title="FdSanitizer 简介" data-hashtags="file descriptor,double-close,use-after-close"><i class="fab fa-twitter fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Facebook" data-sharer="facebook" data-url="https://example.com/fdsan/" data-hashtag="file descriptor"><i class="fab fa-facebook-square fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Hacker News" data-sharer="hackernews" data-url="https://example.com/fdsan/" data-title="FdSanitizer 简介"><i class="fab fa-hacker-news fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Line" data-sharer="line" data-url="https://example.com/fdsan/" data-title="FdSanitizer 简介"><i data-svg-src="https://cdn.jsdelivr.net/npm/simple-icons@7.3.0/icons/line.svg" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 微博" data-sharer="weibo" data-url="https://example.com/fdsan/" data-title="FdSanitizer 简介"><i class="fab fa-weibo fa-fw" aria-hidden="true"></i></a></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw" aria-hidden="true"></i>&nbsp;<a href="/tags/file-descriptor/">file descriptor</a>,&nbsp;<a href="/tags/double-close/">double-close</a>,&nbsp;<a href="/tags/use-after-close/">use-after-close</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"><a href="/art-jni-critical-deadlock/" class="prev" rel="prev" title="art gc相关死锁黑屏问题总结"><i class="fas fa-angle-left fa-fw" aria-hidden="true"></i>art gc相关死锁黑屏问题总结</a>
+            <a href="/hwasan/" class="next" rel="next" title="Android Hardware Assisted Address Sanitizer原理简介">Android Hardware Assisted Address Sanitizer原理简介<i class="fas fa-angle-right fa-fw" aria-hidden="true"></i></a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line" itemscope itemtype="http://schema.org/CreativeWork"><i class="far fa-copyright fa-fw" aria-hidden="true"></i><span itemprop="copyrightYear">2017 - 2024</span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw" aria-hidden="true"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw" aria-hidden="true"></i>
+            </a>
+        </div><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/autocomplete.js@0.38.1/dist/autocomplete.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/algoliasearch@4.13.1/dist/algoliasearch-lite.umd.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sharer.js@0.5.1/sharer.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":50},"comment":{},"search":{"algoliaAppID":"PASDMWALPK","algoliaIndex":"index.zh-cn","algoliaSearchKey":"b42948e51daaa93df92381c8e2ac0f93","highlightTag":"em","maxResultLength":10,"noResultsFound":"没有找到结果","snippetLength":50,"type":"algolia"}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

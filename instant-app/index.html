@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <title>Android Instant App简介 - WWM的记事本</title><meta name="Description" content="This is my cool site"><meta property="og:title" content="Android Instant App简介" />
+<meta property="og:description" content="Instant App中文翻译即“免安装应用”，当点击一个链接时，类似6.0上引入的App Links功能，但更加强大的是，即便用户还没有安装对应的应，也可" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://example.com/instant-app/" />
+<meta property="og:image" content="https://example.com/snowforest.png"/>
+<meta property="article:published_time" content="2018-01-18T00:00:00+00:00" />
+<meta property="article:modified_time" content="2018-01-18T00:00:00+00:00" /><meta property="og:site_name" content="My cool site" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://example.com/snowforest.png"/>
+
+<meta name="twitter:title" content="Android Instant App简介"/>
+<meta name="twitter:description" content="Instant App中文翻译即“免安装应用”，当点击一个链接时，类似6.0上引入的App Links功能，但更加强大的是，即便用户还没有安装对应的应，也可"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://example.com/instant-app/" /><link rel="prev" href="https://example.com/android-vdex/" /><link rel="next" href="https://example.com/pkms-permission/" /><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css"></noscript><link rel="preload" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Android Instant App简介",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/example.com\/instant-app\/"
+        },"image": ["https:\/\/example.com\/images\/Apple-Devices-Preview.png"],"genre": "posts","keywords": "instant_app, pkms","wordcount":  2826 ,
+        "url": "https:\/\/example.com\/instant-app\/","datePublished": "2018-01-18T00:00:00+00:00","dateModified": "2018-01-18T00:00:00+00:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "xxxx","logo": "https:\/\/example.com\/images\/avatar.png"},"author": {
+                "@type": "Person",
+                "name": "wwm"
+            },"description": ""
+    }
+    </script></head>
+    <body data-header-desktop="fixed" data-header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('auto' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'auto' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="https://github.com/wwm0609" rel="noopener noreffer" target="_blank"> Github </a><span class="menu-item delimiter"></span><span class="menu-item search" id="search-desktop">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-desktop">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-desktop" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-desktop" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-desktop">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+                </a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><div class="search-wrapper">
+                    <div class="search mobile" id="search-mobile">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-mobile">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-mobile" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-mobile" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-mobile">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                    <a href="javascript:void(0);" class="search-cancel" id="search-cancel-mobile">
+                        取消
+                    </a>
+                </div><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="https://github.com/wwm0609" title="" rel="noopener noreffer" target="_blank">Github</a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+            </a></div>
+    </div>
+</header><div class="search-dropdown desktop">
+        <div id="search-dropdown-desktop"></div>
+    </div>
+    <div class="search-dropdown mobile">
+        <div id="search-dropdown-mobile"></div>
+    </div><main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animate__animated animate__flipInX">Android Instant App简介</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel="author" class="author"><i class="fas fa-user-circle fa-fw" aria-hidden="true"></i>wwm</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw" aria-hidden="true"></i>&nbsp;<time datetime="2018-01-18">2018-01-18</time>&nbsp;<i class="fas fa-pencil-alt fa-fw" aria-hidden="true"></i>&nbsp;约 2826 字&nbsp;
+                <i class="far fa-clock fa-fw" aria-hidden="true"></i>&nbsp;预计阅读 6 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  data-kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right" aria-hidden="true"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#instant-app">如何体验Instant App</a></li>
+    <li><a href="#instant-app-1">如何开发Instant App</a></li>
+    <li><a href="#framework">Framework的实现</a>
+      <ul>
+        <li><a href="#heading">安装流程</a></li>
+        <li><a href="#instant-apppackageinstalleractivity">instant app的安装代码实现与PackageInstallerActivity基本相同，都是：</a></li>
+        <li><a href="#instant-app-2">运行instant app</a></li>
+        <li><a href="#heading-1">运行时的限制</a></li>
+      </ul>
+    </li>
+    <li><a href="#heading-2">小结</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>Instant App中文翻译即“免安装应用”，当点击一个链接时，类似6.0上引入的App Links功能，但更加强大的是，即便用户还没有安装对应的应，也可以直接打相应的应用，从而可以无缝体验原生应用。</p>
+<!-- more -->
+<h2 id="instant-app">如何体验Instant App</h2>
+<ol>
+<li>
+<p>在nexus或pixel 8.0+设备上登录google帐号，进入设置 → Google → Instant apps → 选中之前登录的google帐号 → 系统弹出相关使用协议对话框 → 点击同意</p>
+</li>
+<li>
+<p>进入chrome, 使用google 搜索 jet（试了下andorid官网说的几个instant app，竟然没有一个可以用的），点击有&rsquo;<strong>instant</strong>&lsquo;标注的链接，参考下图：</p>
+</li>
+</ol>
+ <center>
+ <img src="instant-app-search-jet.png"  width="300"/>
+ </center>
+<ol start="3">
+<li>稍等片刻(网速慢的话会先出现下左图的进度条)，即可进入jet应用（可能不支持大陆地区，这时候你得更新google账户的地区，在Play Store里绑定一个支持visa的信用卡即可）</li>
+</ol>
+ <center>
+ <img src="instant-app-loading_jet.png"  width="300"/>
+ <img src="instant-app-jet.png"  width="300"/>
+ </center>
+<h2 id="instant-app-1">如何开发Instant App</h2>
+<p>请参考 <a href="https://developer.android.com/topic/instant-apps/getting-started/index.html" target="_blank" rel="noopener noreffer ">Getting started with Android Instant Apps</a>，android studio 3.0支持良好，此处略</p>
+<h2 id="framework">Framework的实现</h2>
+<h3 id="heading">安装流程</h3>
+<p>在resolveIntent()的地方加了一个断点，然后点击那个带有instant标注的链接，这时chrome没有直接处理这个url，而是把你点击的链接封装成一个intent，通过startActivityIfNeed()调用让系统负责处理它</p>
+<p><img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="instant-app-install-backtrace.png"
+        data-srcset="instant-app-install-backtrace.png, instant-app-install-backtrace.png 1.5x, instant-app-install-backtrace.png 2x"
+        data-sizes="auto"
+        alt="instant-app-install-backtrace.png"
+        title="instant-app-install-backtrace" /></p>
+<p>点击evaluate expression那个按钮(上图第一行最后一个按钮)，执行Binder.getCallingUid()可以获取到对端进程的uid为10017，然后通过getPackagesForUid(uid)也可以确认调用就是chrome</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-bash" data-lang="bash">$ adb shell dumpsys package com.android.chrome
+Packages:
+Package <span class="o">[</span>com.android.chrome<span class="o">]</span> <span class="o">(</span>85fb650<span class="o">)</span>:
+<span class="nv">userId</span><span class="o">=</span><span class="m">10017</span>
+<span class="nv">pkg</span><span class="o">=</span>Package<span class="o">{</span>bfce98e com.android.chrome<span class="o">}</span>     <span class="nv">codePath</span><span class="o">=</span>/data/app/com.android.chrome--q5-0Pq30E_mdBwuC9yI9Q<span class="o">=</span><span class="o">=</span> ...
+</code></pre></td></tr></table>
+</div>
+</div><p>这时，系统会额外执行一些验证流程（TL;DR;）后，然后发现这个url是有对应的instant app可以使用的，于是就返回EphemeralInstallerActivity给调用方，最终打开它来下载和安装相应的instant app，参考：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">private</span> <span class="kt">void</span> <span class="nf">setUpInstantAppInstallerActivityLP</span><span class="o">(</span><span class="n">ActivityInfo</span> <span class="n">installerActivity</span><span class="o">)</span> <span class="o">{</span>
+    <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+    <span class="c1">// Set up information for ephemeral installer activity
+</span><span class="c1"></span>    <span class="n">mInstantAppInstallerActivity</span> <span class="o">=</span> <span class="n">installerActivity</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerActivity</span><span class="o">.</span><span class="na">flags</span> <span class="o">|</span><span class="o">=</span> <span class="n">ActivityInfo</span><span class="o">.</span><span class="na">FLAG_EXCLUDE_FROM_RECENTS</span>
+            <span class="o">|</span> <span class="n">ActivityInfo</span><span class="o">.</span><span class="na">FLAG_FINISH_ON_CLOSE_SYSTEM_DIALOGS</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerActivity</span><span class="o">.</span><span class="na">exported</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerActivity</span><span class="o">.</span><span class="na">enabled</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerInfo</span><span class="o">.</span><span class="na">activityInfo</span> <span class="o">=</span> <span class="n">mInstantAppInstallerActivity</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerInfo</span><span class="o">.</span><span class="na">priority</span> <span class="o">=</span> <span class="n">0</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerInfo</span><span class="o">.</span><span class="na">preferredOrder</span> <span class="o">=</span> <span class="n">1</span><span class="o">;</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; 一般其他app的都为0
+</span><span class="c1"></span>    <span class="n">mInstantAppInstallerInfo</span><span class="o">.</span><span class="na">isDefault</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+    <span class="n">mInstantAppInstallerInfo</span><span class="o">.</span><span class="na">match</span> <span class="o">=</span> <span class="n">IntentFilter</span><span class="o">.</span><span class="na">MATCH_CATEGORY_SCHEME_SPECIFIC_PART</span>
+            <span class="o">|</span> <span class="n">IntentFilter</span><span class="o">.</span><span class="na">MATCH_ADJUSTMENT_NORMAL</span><span class="o">;</span>
+<span class="o">}</span>
+
+<span class="kd">private</span> <span class="n">ResolveInfo</span> <span class="nf">chooseBestActivity</span><span class="o">(</span><span class="n">Intent</span> <span class="n">intent</span><span class="o">,</span> <span class="n">String</span> <span class="n">resolvedType</span><span class="o">,</span>
+        <span class="kt">int</span> <span class="n">flags</span><span class="o">,</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">ResolveInfo</span><span class="o">&gt;</span> <span class="n">query</span><span class="o">,</span> <span class="kt">int</span> <span class="n">userId</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">query</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">final</span> <span class="kt">int</span> <span class="n">N</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="na">size</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">N</span> <span class="o">=</span><span class="o">=</span> <span class="n">1</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">0</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">N</span> <span class="o">&gt;</span> <span class="n">1</span><span class="o">)</span> <span class="o">{</span>
+            <span class="kd">final</span> <span class="kt">boolean</span> <span class="n">debug</span> <span class="o">=</span> <span class="o">(</span><span class="o">(</span><span class="n">intent</span><span class="o">.</span><span class="na">getFlags</span><span class="o">(</span><span class="o">)</span> <span class="o">&amp;</span> <span class="n">Intent</span><span class="o">.</span><span class="na">FLAG_DEBUG_LOG_RESOLUTION</span><span class="o">)</span> <span class="o">!</span><span class="o">=</span> <span class="n">0</span><span class="o">)</span><span class="o">;</span>
+            <span class="c1">// If there is more than one activity with the same priority,
+</span><span class="c1"></span>            <span class="c1">// then let the user decide between them.
+</span><span class="c1"></span>            <span class="c1">// If the first activity has a higher priority, or a different
+</span><span class="c1"></span>            <span class="c1">// default, then it is always desirable to pick it.
+</span><span class="c1"></span>            <span class="k">if</span> <span class="o">(</span><span class="n">r0</span><span class="o">.</span><span class="na">priority</span> <span class="o">!</span><span class="o">=</span> <span class="n">r1</span><span class="o">.</span><span class="na">priority</span>
+                    <span class="o">|</span><span class="o">|</span> <span class="n">r0</span><span class="o">.</span><span class="na">preferredOrder</span> <span class="o">!</span><span class="o">=</span> <span class="n">r1</span><span class="o">.</span><span class="na">preferredOrder</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; hit
+</span><span class="c1"></span>                    <span class="o">|</span><span class="o">|</span> <span class="n">r0</span><span class="o">.</span><span class="na">isDefault</span> <span class="o">!</span><span class="o">=</span> <span class="n">r1</span><span class="o">.</span><span class="na">isDefault</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">0</span><span class="o">)</span><span class="o">;</span>
+            <span class="o">}</span>
+		<span class="o">.</span><span class="o">.</span><span class="o">.</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">01-12 07:24:11.657 813-2282/system_process I/ActivityManager: START u0 {act=android.intent.action.VIEW cat=[android.intent.category.BROWSABLE] dat=https://jet.com/... flg=0x1c080000 cmp=com.android.vending/com.google.android.finsky.instantapps.EphemeralInstallerActivity (has extras)} from uid 10017 (可以看到调用方是google chrome)
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">// google playstore的AndroidManifest.xml
+&lt;activity 
+    finsky:name=&#34;com.google.android.finsky.instantapps.EphemeralInstallerActivity&#34;
+    finsky:process=&#34;:instant_app_installer&#34; 
+    finsky:taskAffinity=&#34;:instant_app_installer&#34; 
+    finsky:launchMode=&#34;singleInstance&#34; &gt;
+    &lt;intent-filter&gt;
+        &lt;action finsky:name=&#34;android.intent.action.INSTALL_INSTANT_APP_PACKAGE&#34; /&gt;
+        &lt;category finsky:name=&#34;android.intent.category.DEFAULT&#34; /&gt;
+        &lt;data finsky:scheme=&#34;file&#34; /&gt;
+        &lt;data finsky:mimeType=&#34;application/vnd.android.package-archive&#34; /&gt;
+    &lt;/intent-filter&gt;  
+&lt;/activity&gt;
+</code></pre></td></tr></table>
+</div>
+</div><h3 id="instant-apppackageinstalleractivity">instant app的安装代码实现与PackageInstallerActivity基本相同，都是：</h3>
+<ul>
+<li>通过**PackageManager.getPackageInstaller()**获取到PckageInstanllerService的binder proxy对象，</li>
+<li>通过 <strong>openSesstion()</strong> 这个binder call到system server端的PackageInstallerService，PackageInstallerService负责创建一个PackageInstallerSession这个binder实例，并返回</li>
+<li>通过获取到的IpackageInstallerSesstion这个binder proxy再通过 <strong>openWrite()</strong> 让服务端创建一个socket pair，并拿到对应的client socket的文件描述符(fd)，接着就是通过这个socket fd
+把intant app的apk文件写入到system server端，system server端会负责接受文件流，并写入到/data/app/下的一个临时文件里；</li>
+<li>接下来就是走完PackageManagerServerice的installPackage流程，这里相比普通app有会几点不同：
+instant app不能安装在外置存储上
+target sdk version 需8.0+，target sandbox version 需2+
+安装时不进行dex2oat操作（避免安装时间太长，影响体验），bg dexopt服务也不会对它做优化（存活时间可能比较短，没必要优化）
+不能自定义权限(组)
+不能用instant app替换已存在的相同包名的非instant app版本（反过来是可以）
+磁盘空间不足时，instant app可能会被移除掉</li>
+</ul>
+<h3 id="instant-app-2">运行instant app</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-bash" data-lang="bash">01-12 07:47:39.436 813-825/system_process I/ActivityManager: START u0 <span class="o">{</span><span class="nv">act</span><span class="o">=</span>android.intent.action.VIEW <span class="nv">cat</span><span class="o">=</span><span class="o">[</span>android.intent.category.BROWSABLE<span class="o">]</span> <span class="nv">dat</span><span class="o">=</span>https://jet.com/... <span class="nv">flg</span><span class="o">=</span>0x1c080000 <span class="nv">cmp</span><span class="o">=</span>com.jet.jet.app/com.jet.baselib.activities.RootActivity <span class="o">(</span>has extras<span class="o">)</span><span class="o">}</span> from uid <span class="m">10017</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>jet安装成功后，chrome会再发出上面的intent来让系统处理这个url，这个时候查询到有jet这个app可以handle这个app，于是jet应用就被成功拉起来了；</p>
+<p>Q：安装了多个浏览器时，任意的浏览器其实都可以处理https://www.jet.com，为什么可以直接进入jet，而不是其他的浏览器app？</p>
+<p>A：因为jet app最匹配https://www.jet.com这个URL</p>
+<p>参考IntentFilter的匹配intent的流程：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">final</span> <span class="kt">int</span> <span class="nf">matchData</span><span class="o">(</span><span class="n">String</span> <span class="n">type</span><span class="o">,</span> <span class="n">String</span> <span class="n">scheme</span><span class="o">,</span> <span class="n">Uri</span> <span class="n">data</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">schemes</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">schemes</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="n">scheme</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span> <span class="o">?</span> <span class="n">scheme</span> <span class="o">:</span> <span class="s">&#34;&#34;</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">MATCH_CATEGORY_SCHEME</span><span class="o">;</span> <span class="c1">// 0x0200000 1. 先匹配scheme, 例如http/https或其他自定义scheme
+</span><span class="c1"></span>        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="k">return</span> <span class="n">NO_MATCH_DATA</span><span class="o">;</span> 
+        <span class="o">}</span>
+
+        <span class="kd">final</span> <span class="n">ArrayList</span><span class="o">&lt;</span><span class="n">PatternMatcher</span><span class="o">&gt;</span> <span class="n">schemeSpecificParts</span> <span class="o">=</span> <span class="n">mDataSchemeSpecificParts</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">schemeSpecificParts</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">data</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">hasDataSchemeSpecificPart</span><span class="o">(</span><span class="n">data</span><span class="o">.</span><span class="na">getSchemeSpecificPart</span><span class="o">(</span><span class="o">)</span><span class="o">)</span>
+                    <span class="o">?</span> <span class="n">MATCH_CATEGORY_SCHEME_SPECIFIC_PART</span> <span class="o">:</span> <span class="n">NO_MATCH_DATA</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">match</span> <span class="o">!</span><span class="o">=</span> <span class="n">MATCH_CATEGORY_SCHEME_SPECIFIC_PART</span><span class="o">)</span> <span class="o">{</span>
+            <span class="c1">// If there isn&#39;t any matching ssp, we need to match an authority.
+</span><span class="c1"></span>            <span class="kd">final</span> <span class="n">ArrayList</span><span class="o">&lt;</span><span class="n">AuthorityEntry</span><span class="o">&gt;</span> <span class="n">authorities</span> <span class="o">=</span> <span class="n">mDataAuthorities</span><span class="o">;</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">authorities</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+                <span class="kt">int</span> <span class="n">authMatch</span> <span class="o">=</span> <span class="n">matchDataAuthority</span><span class="o">(</span><span class="n">data</span><span class="o">)</span><span class="o">;</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">authMatch</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">0</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="kd">final</span> <span class="n">ArrayList</span><span class="o">&lt;</span><span class="n">PatternMatcher</span><span class="o">&gt;</span> <span class="n">paths</span> <span class="o">=</span> <span class="n">mDataPaths</span><span class="o">;</span>
+                    <span class="k">if</span> <span class="o">(</span><span class="n">paths</span> <span class="o">=</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+                        <span class="n">match</span> <span class="o">=</span> <span class="n">authMatch</span><span class="o">;</span>
+                    <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">hasDataPath</span><span class="o">(</span><span class="n">data</span><span class="o">.</span><span class="na">getPath</span><span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span> <span class="c1">// 2. 再检查是否有更加匹配的path
+</span><span class="c1"></span>                        <span class="n">match</span> <span class="o">=</span> <span class="n">MATCH_CATEGORY_PATH</span><span class="o">;</span> <span class="c1">// 0x0500000
+</span><span class="c1"></span>            <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+       <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+    <span class="o">}</span> 
+    <span class="k">if</span> <span class="o">(</span><span class="n">types</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">findMimeType</span><span class="o">(</span><span class="n">type</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">MATCH_CATEGORY_TYPE</span><span class="o">;</span> <span class="c1">// 0x0600000  3. 最后再匹配mime类型
+</span><span class="c1"></span>        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="k">return</span> <span class="n">NO_MATCH_TYPE</span><span class="o">;</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+    <span class="k">return</span> <span class="n">match</span> <span class="o">+</span> <span class="n">MATCH_ADJUSTMENT_NORMAL</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>后续流程参考chooseBestActivity() → findPreferredActivity()，不赘述</p>
+<h3 id="heading-1">运行时的限制</h3>
+<ol>
+<li>instant app无法查询到非instant app里声明的组件，除非是下面两种情况：
+<pre>
+</li>
+</ol>
+<ol>
+<li>显示声明了组件可以被instant app查询到，即标签上增加了&quot;android:visibleToInstantApps=true&rdquo;；</li>
+<li>未显示申明visibleToInstantApps，但是该组件是Activity/Service，且其intent filter包含category_browsable/action_send(to)/action_send_multiple中任意一个；
+</pre></li>
+</ol>
+<ol start="2">
+<li>非instant app无法查询instant app的组件</li>
+<li>目前不支持发送通知</li>
+<li>不允许动态加载native/java code</li>
+<li>不支持静态注册的receiver，不支持定义或访问其他app的ContentProvider，service不能长期运行</li>
+</ol>
+<h2 id="heading-2">小结</h2>
+<p>优点：</p>
+<ol>
+<li>无需手动安装app，(<strong>浏览器里</strong>)点击链接即可进入原生app</li>
+<li>基本和普通app一致的开发流程，模块化开发</li>
+</ol>
+<p>缺点：</p>
+<ol>
+<li>依赖google play store, gms, chrome等服务，政策原因，国内用不了<em>~_~||</em></li>
+<li>目前支持的应用特别少</li>
+<li>app开发要维护两个版本的代码</li>
+</ol>
+</div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2018-01-18</span>
+            </div></div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span><a href="javascript:void(0);" title="分享到 Twitter" data-sharer="twitter" data-url="https://example.com/instant-app/" data-title="Android Instant App简介" data-hashtags="instant_app,pkms"><i class="fab fa-twitter fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Facebook" data-sharer="facebook" data-url="https://example.com/instant-app/" data-hashtag="instant_app"><i class="fab fa-facebook-square fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Hacker News" data-sharer="hackernews" data-url="https://example.com/instant-app/" data-title="Android Instant App简介"><i class="fab fa-hacker-news fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Line" data-sharer="line" data-url="https://example.com/instant-app/" data-title="Android Instant App简介"><i data-svg-src="https://cdn.jsdelivr.net/npm/simple-icons@7.3.0/icons/line.svg" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 微博" data-sharer="weibo" data-url="https://example.com/instant-app/" data-title="Android Instant App简介"><i class="fab fa-weibo fa-fw" aria-hidden="true"></i></a></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw" aria-hidden="true"></i>&nbsp;<a href="/tags/instant_app/">instant_app</a>,&nbsp;<a href="/tags/pkms/">pkms</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"><a href="/android-vdex/" class="prev" rel="prev" title="Android 8.0 VDEX机制简介"><i class="fas fa-angle-left fa-fw" aria-hidden="true"></i>Android 8.0 VDEX机制简介</a>
+            <a href="/pkms-permission/" class="next" rel="next" title="Android PKMS 权限管理介绍">Android PKMS 权限管理介绍<i class="fas fa-angle-right fa-fw" aria-hidden="true"></i></a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line" itemscope itemtype="http://schema.org/CreativeWork"><i class="far fa-copyright fa-fw" aria-hidden="true"></i><span itemprop="copyrightYear">2017 - 2024</span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw" aria-hidden="true"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw" aria-hidden="true"></i>
+            </a>
+        </div><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/autocomplete.js@0.38.1/dist/autocomplete.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/algoliasearch@4.13.1/dist/algoliasearch-lite.umd.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sharer.js@0.5.1/sharer.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":50},"comment":{},"search":{"algoliaAppID":"PASDMWALPK","algoliaIndex":"index.zh-cn","algoliaSearchKey":"b42948e51daaa93df92381c8e2ac0f93","highlightTag":"em","maxResultLength":10,"noResultsFound":"没有找到结果","snippetLength":50,"type":"algolia"}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

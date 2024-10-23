@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <title>system_server BinderProxy相关泄露问题记录 - WWM的记事本</title><meta name="Description" content="This is my cool site"><meta property="og:title" content="system_server BinderProxy相关泄露问题记录" />
+<meta property="og:description" content="记录一下这个问题的分析过程，主要是分享下Eclipse MAT的使用技巧 ：-) 问题现象 在长时间的稳定性测试后，经常遇到下面2类错误导致的重启，" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://example.com/binder-proxy-leak/" />
+<meta property="og:image" content="https://example.com/snowforest.png"/>
+<meta property="article:published_time" content="2018-12-25T00:00:00+00:00" />
+<meta property="article:modified_time" content="2018-12-25T00:00:00+00:00" /><meta property="og:site_name" content="My cool site" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://example.com/snowforest.png"/>
+
+<meta name="twitter:title" content="system_server BinderProxy相关泄露问题记录"/>
+<meta name="twitter:description" content="记录一下这个问题的分析过程，主要是分享下Eclipse MAT的使用技巧 ：-) 问题现象 在长时间的稳定性测试后，经常遇到下面2类错误导致的重启，"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://example.com/binder-proxy-leak/" /><link rel="prev" href="https://example.com/pkms-permission/" /><link rel="next" href="https://example.com/art-jni-critical-deadlock/" /><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css"></noscript><link rel="preload" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "system_server BinderProxy相关泄露问题记录",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/example.com\/binder-proxy-leak\/"
+        },"image": ["https:\/\/example.com\/images\/Apple-Devices-Preview.png"],"genre": "posts","keywords": "binder, mat, hprof","wordcount":  7786 ,
+        "url": "https:\/\/example.com\/binder-proxy-leak\/","datePublished": "2018-12-25T00:00:00+00:00","dateModified": "2018-12-25T00:00:00+00:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "xxxx","logo": "https:\/\/example.com\/images\/avatar.png"},"author": {
+                "@type": "Person",
+                "name": "wwm"
+            },"description": ""
+    }
+    </script></head>
+    <body data-header-desktop="fixed" data-header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('auto' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'auto' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="https://github.com/wwm0609" rel="noopener noreffer" target="_blank"> Github </a><span class="menu-item delimiter"></span><span class="menu-item search" id="search-desktop">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-desktop">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-desktop" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-desktop" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-desktop">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+                </a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><div class="search-wrapper">
+                    <div class="search mobile" id="search-mobile">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-mobile">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-mobile" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-mobile" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-mobile">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                    <a href="javascript:void(0);" class="search-cancel" id="search-cancel-mobile">
+                        取消
+                    </a>
+                </div><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="https://github.com/wwm0609" title="" rel="noopener noreffer" target="_blank">Github</a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+            </a></div>
+    </div>
+</header><div class="search-dropdown desktop">
+        <div id="search-dropdown-desktop"></div>
+    </div>
+    <div class="search-dropdown mobile">
+        <div id="search-dropdown-mobile"></div>
+    </div><main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animate__animated animate__flipInX">system_server BinderProxy相关泄露问题记录</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel="author" class="author"><i class="fas fa-user-circle fa-fw" aria-hidden="true"></i>wwm</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw" aria-hidden="true"></i>&nbsp;<time datetime="2018-12-25">2018-12-25</time>&nbsp;<i class="fas fa-pencil-alt fa-fw" aria-hidden="true"></i>&nbsp;约 7786 字&nbsp;
+                <i class="far fa-clock fa-fw" aria-hidden="true"></i>&nbsp;预计阅读 16 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  data-kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right" aria-hidden="true"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#heading">问题现象</a>
+      <ul>
+        <li><a href="#1binder-proxymap-has-too-many-entries">问题1：Binder ProxyMap has too many entries</a></li>
+        <li><a href="#2-global-reference-table-overflow">问题2： global reference table overflow</a></li>
+      </ul>
+    </li>
+    <li><a href="#binderproxy">增加调试代码，输出BinderProxy详细信息</a>
+      <ul>
+        <li><a href="#heading-1">再调整</a></li>
+      </ul>
+    </li>
+    <li><a href="#heading-2">定位泄漏点</a></li>
+    <li><a href="#global-reference-overflow">继续调查global reference overflow问题</a></li>
+    <li><a href="#heading-3">小结：</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>记录一下这个问题的分析过程，主要是分享下Eclipse MAT的使用技巧 ：-)</p>
+<h2 id="heading">问题现象</h2>
+<p>在长时间的稳定性测试后，经常遇到下面2类错误导致的重启，9.0上遇到的比较多的是这个java层报错：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="n">java</span><span class="o">.</span><span class="na">lang</span><span class="o">.</span><span class="na">AssertionError</span><span class="o">:</span> <span class="n">Binder</span> <span class="n">ProxyMap</span> <span class="n">has</span> <span class="n">too</span> <span class="n">many</span> <span class="n">entries</span><span class="o">:</span> <span class="n">20440</span> <span class="o">(</span><span class="n">total</span><span class="o">)</span><span class="o">,</span> <span class="n">20272</span> <span class="o">(</span><span class="n">uncleared</span><span class="o">)</span><span class="o">,</span> <span class="n">20176</span> <span class="o">(</span><span class="n">uncleared</span> <span class="n">after</span> <span class="n">GC</span><span class="o">)</span><span class="o">.</span> <span class="n">BinderProxy</span> <span class="n">leak</span><span class="o">?</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>而8.0上报的都是下面这个global reference overflow的NE问题：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="nl">pid</span><span class="p">:</span> <span class="mi">1505</span><span class="p">,</span> <span class="nl">tid</span><span class="p">:</span> <span class="mi">2994</span><span class="p">,</span> <span class="nl">name</span><span class="p">:</span> <span class="nl">Binder</span><span class="p">:</span><span class="mi">1505</span><span class="n">_B</span>  <span class="o">&gt;</span><span class="o">&gt;</span><span class="o">&gt;</span> <span class="n">system_server</span> <span class="o">&lt;</span><span class="o">&lt;</span><span class="o">&lt;</span>
+<span class="n">signal</span> <span class="mi">6</span> <span class="p">(</span><span class="n">SIGABRT</span><span class="p">)</span><span class="p">,</span> <span class="n">code</span> <span class="o">-</span><span class="mi">6</span> <span class="p">(</span><span class="n">SI_TKILL</span><span class="p">)</span><span class="p">,</span> <span class="n">fault</span> <span class="n">addr</span> <span class="o">-</span><span class="o">-</span><span class="o">-</span><span class="o">-</span><span class="o">-</span><span class="o">-</span><span class="o">-</span><span class="o">-</span>
+<span class="n">Abort</span> <span class="nl">message</span><span class="p">:</span> <span class="err">&#39;</span><span class="n">indirect_reference_table</span><span class="p">.</span><span class="nl">cc</span><span class="p">:</span><span class="mi">255</span><span class="p">]</span> <span class="n">JNI</span> <span class="n">ERROR</span> <span class="p">(</span><span class="n">app</span> <span class="n">bug</span><span class="p">)</span><span class="o">:</span> <span class="n">global</span> <span class="n">reference</span> <span class="n">table</span> <span class="n">overflow</span> <span class="p">(</span><span class="n">max</span><span class="o">=</span><span class="mi">51200</span><span class="p">)</span><span class="err">&#39;</span>
+</code></pre></td></tr></table>
+</div>
+</div><!-- more -->
+<h3 id="1binder-proxymap-has-too-many-entries">问题1：Binder ProxyMap has too many entries</h3>
+<p>这个错误信息十分清晰，BinderProxy实例的数量太多，在执行一次gc后，system_server进程依然有20176个存活的BinderProxy对象。</p>
+<p>仔细再看下异常调用栈：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">at android.os.BinderProxy$ProxyMap.set(Binder.java:951)
+at android.os.BinderProxy.getInstance(Binder.java:1078)
+at android.os.Parcel.nativeReadStrongBinder(Native Method)
+at android.os.Parcel.readStrongBinder(Parcel.java:2035)
+at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:480)
+at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:3383)
+at android.os.Binder.execTransact(Binder.java:733)
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">final</span> <span class="kd">class</span> <span class="nc">BinderProxy</span> <span class="kd">implements</span> <span class="n">IBinder</span> <span class="o">{</span>
+    <span class="c1">// called from native code
+</span><span class="c1"></span>    <span class="kd">private</span> <span class="kd">static</span> <span class="n">BinderProxy</span> <span class="nf">getInstance</span><span class="o">(</span><span class="kt">long</span> <span class="n">nativeData</span><span class="o">,</span> <span class="kt">long</span> <span class="n">iBinder</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">BinderProxy</span> <span class="n">result</span> <span class="o">=</span> <span class="n">sProxyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">iBinder</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">result</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BinderProxy</span><span class="o">(</span><span class="n">nativeData</span><span class="o">)</span><span class="o">;</span>
+        <span class="n">sProxyMap</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">iBinder</span><span class="o">,</span> <span class="n">result</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+    <span class="o">}</span>
+ 
+    <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kd">class</span> <span class="nc">ProxyMap</span> <span class="o">{</span>
+        <span class="kt">void</span> <span class="nf">set</span><span class="o">(</span><span class="kt">long</span> <span class="n">key</span><span class="o">,</span> <span class="nd">@NonNull</span> <span class="n">BinderProxy</span> <span class="n">value</span><span class="o">)</span> <span class="o">{</span>
+            <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">size</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">mWarnBucketSize</span><span class="o">)</span> <span class="o">{</span>
+                <span class="kd">final</span> <span class="kt">int</span> <span class="n">totalSize</span> <span class="o">=</span> <span class="n">size</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+                <span class="n">mWarnBucketSize</span> <span class="o">+</span><span class="o">=</span> <span class="n">WARN_INCREMENT</span><span class="o">;</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">Build</span><span class="o">.</span><span class="na">IS_DEBUGGABLE</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="n">totalSize</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">CRASH_AT_SIZE</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="c1">// Use the number of uncleared entries to determine whether we should
+</span><span class="c1"></span>                    <span class="c1">// really report a histogram and crash. We don&#39;t want to fundamentally
+</span><span class="c1"></span>                    <span class="c1">// change behavior for a debuggable process, so we GC only if we are
+</span><span class="c1"></span>                    <span class="c1">// about to crash.
+</span><span class="c1"></span>                    <span class="kd">final</span> <span class="kt">int</span> <span class="n">totalUnclearedSize</span> <span class="o">=</span> <span class="n">unclearedSize</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+                    <span class="k">if</span> <span class="o">(</span><span class="n">totalUnclearedSize</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">CRASH_AT_SIZE</span><span class="o">)</span> <span class="o">{</span> <span class="c1">// CRASH_AT_SIZE = 20000
+</span><span class="c1"></span>                        <span class="n">dumpProxyInterfaceCounts</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+                        <span class="n">dumpPerUidProxyCounts</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+                        <span class="n">Runtime</span><span class="o">.</span><span class="na">getRuntime</span><span class="o">(</span><span class="o">)</span><span class="o">.</span><span class="na">gc</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+                        <span class="k">throw</span> <span class="k">new</span> <span class="n">AssertionError</span><span class="o">(</span><span class="s">&#34;Binder ProxyMap has too many entries: &#34;</span>
+                                <span class="o">+</span> <span class="n">totalSize</span> <span class="o">+</span> <span class="s">&#34; (total), &#34;</span> <span class="o">+</span> <span class="n">totalUnclearedSize</span> <span class="o">+</span> <span class="s">&#34; (uncleared), &#34;</span>
+                                <span class="o">+</span> <span class="n">unclearedSize</span><span class="o">(</span><span class="o">)</span> <span class="o">+</span> <span class="s">&#34; (uncleared after GC). BinderProxy leak?&#34;</span><span class="o">)</span><span class="o">;</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+</span><span class="c1"></span>                <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>结合代码后，了解到ProxyMap里会存放所有的java层BinderProxy对象，使用的时WeakReference，就是为了内存泄漏，我们知道，当WeakReference自身引用的对象
+在没有被其他强引用占用时，WeakReference里的引用的对象就会被虚拟机在下次gc时自动回收掉。
+现在既然存在BinderProxy泄漏，那肯定就是system_server进程里某个地方一直在持有着对BinderProxy对象，那么后面排查这个问题，我们就需要解决下面两个问题：</p>
+<ul>
+<li>这20000多个BinderProxy对象都是哪些进程的Binder对象的代理？</li>
+<li>谁一直在强引用着这些BinderProxy对象？</li>
+</ul>
+<h3 id="2-global-reference-table-overflow">问题2： global reference table overflow</h3>
+<p>global reference的详细用途，可以参考<a href="https://developer.android.com/training/articles/perf-jni#local-and-global-references" target="_blank" rel="noopener noreffer ">google文档</a>，简单来说就是native代码里需要引用java层对象，为了防止被使用的java对象被gc回收掉，需要向虚拟机注册一个全局强引用，这样虚拟机gc时即使发现这个被引用的java对象已经没有其他java层对象持有后，也不会回收这个对象，直到global reference被取消掉，下次gc才可能会回收它；
+还有个local reference，一般是在一个jni方法里，临时使用某个java对象时，先注册一个local reference，目的跟global reference是一样的。
+这儿system_server进程crash的原因是global reference总的数量超过51200了，正常情况下不会有这么多引用，继续看一下这个详细的错误栈：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span> <span class="nl">backtrace</span><span class="p">:</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">00</span> <span class="n">pc</span> <span class="mf">0000000000021f</span><span class="mi">34</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libc</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">abort</span><span class="o">+</span><span class="mi">116</span><span class="p">)</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">01</span> <span class="n">pc</span> <span class="mo">000000000046547</span><span class="mi">8</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libart</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">Runtime</span><span class="o">:</span><span class="o">:</span><span class="n">Abort</span><span class="p">(</span><span class="kt">char</span> <span class="k">const</span><span class="o">*</span><span class="p">)</span><span class="o">+</span><span class="mi">1196</span><span class="p">)</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">02</span> <span class="n">pc</span> <span class="mo">000000000000</span><span class="mi">8</span><span class="n">cd4</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libbase</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">android</span><span class="o">:</span><span class="o">:</span><span class="n">base</span><span class="o">:</span><span class="o">:</span><span class="n">LogMessage</span><span class="o">:</span><span class="o">:</span><span class="o">~</span><span class="n">LogMessage</span><span class="p">(</span><span class="p">)</span><span class="o">+</span><span class="mi">724</span><span class="p">)</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">03</span> <span class="n">pc</span> <span class="mf">00000000002e7438</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libart</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">JavaVMExt</span><span class="o">:</span><span class="o">:</span><span class="n">AddGlobalRef</span><span class="p">(</span><span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">Thread</span><span class="o">*</span><span class="p">,</span> <span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span><span class="p">)</span><span class="o">+</span><span class="mi">304</span><span class="p">)</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">04</span> <span class="n">pc</span> <span class="mo">000000000032</span><span class="n">ed7c</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libart</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">JNI</span><span class="o">:</span><span class="o">:</span><span class="n">NewGlobalRef</span><span class="p">(</span><span class="n">_JNIEnv</span><span class="o">*</span><span class="p">,</span> <span class="n">_jobject</span><span class="o">*</span><span class="p">)</span><span class="o">+</span><span class="mi">612</span><span class="p">)</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">05</span> <span class="n">pc</span> <span class="mo">0000000000131</span><span class="n">b20</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libandroid_runtime</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">JavaDeathRecipient</span><span class="o">:</span><span class="o">:</span><span class="n">JavaDeathRecipient</span><span class="p">(</span><span class="n">_JNIEnv</span><span class="o">*</span><span class="p">,</span> <span class="n">_jobject</span><span class="o">*</span><span class="p">,</span> <span class="n">android</span><span class="o">:</span><span class="o">:</span><span class="n">sp</span><span class="o">&lt;</span><span class="n">DeathRecipientList</span><span class="o">&gt;</span> <span class="k">const</span><span class="o">&amp;</span><span class="p">)</span><span class="o">+</span><span class="mi">136</span><span class="p">)</span>
+<span class="mi">11</span><span class="o">-</span><span class="mi">19</span> <span class="mo">01</span><span class="o">:</span><span class="mi">25</span><span class="o">:</span><span class="mf">50.692</span>  <span class="mi">1000</span> <span class="mi">12354</span> <span class="mi">12354</span> <span class="n">F</span> <span class="nl">DEBUG</span>   <span class="p">:</span>     <span class="err">#</span><span class="mo">06</span> <span class="n">pc</span> <span class="mo">00000000001316</span><span class="n">a0</span>  <span class="o">/</span><span class="n">system</span><span class="o">/</span><span class="n">lib64</span><span class="o">/</span><span class="n">libandroid_runtime</span><span class="p">.</span><span class="n">so</span> <span class="p">(</span><span class="n">android_os_BinderProxy_linkToDeath</span><span class="p">(</span><span class="n">_JNIEnv</span><span class="o">*</span><span class="p">,</span> <span class="n">_jobject</span><span class="o">*</span><span class="p">,</span> <span class="n">_jobject</span><span class="o">*</span><span class="p">,</span> <span class="kt">int</span><span class="p">)</span><span class="o">+</span><span class="mi">160</span><span class="p">)</span>
+<span class="p">.</span><span class="p">.</span><span class="p">.</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>结合BinderProxy.linkToDeath()的代码：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="k">public</span> <span class="k">class</span> <span class="nc">Binder</span> <span class="n">implements</span> <span class="n">IBinder</span> <span class="p">{</span>
+<span class="p">.</span><span class="p">.</span><span class="p">.</span>
+<span class="k">final</span> <span class="k">class</span> <span class="nc">BinderProxy</span> <span class="n">implements</span> <span class="n">IBinder</span> <span class="p">{</span>
+    <span class="k">public</span> <span class="n">native</span> <span class="kt">void</span> <span class="nf">linkToDeath</span><span class="p">(</span><span class="n">DeathRecipient</span> <span class="n">recipient</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">)</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; 1
+</span><span class="c1"></span>            <span class="k">throws</span> <span class="n">RemoteException</span><span class="p">;</span>
+    <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// frameworks/base/core/jni/android_util_Binder.cpp
+</span><span class="c1"></span><span class="k">static</span> <span class="kt">void</span> <span class="nf">android_os_BinderProxy_linkToDeath</span><span class="p">(</span><span class="n">JNIEnv</span><span class="o">*</span> <span class="n">env</span><span class="p">,</span> <span class="n">jobject</span> <span class="n">obj</span><span class="p">,</span>
+        <span class="n">jobject</span> <span class="n">recipient</span><span class="p">,</span> <span class="n">jint</span> <span class="n">flags</span><span class="p">)</span> <span class="c1">// throws RemoteException
+</span><span class="c1"></span><span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">recipient</span> <span class="o">=</span><span class="o">=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">jniThrowNullPointerException</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">return</span><span class="p">;</span>
+    <span class="p">}</span>
+ 
+    <span class="n">BinderProxyNativeData</span> <span class="o">*</span><span class="n">nd</span> <span class="o">=</span> <span class="n">getBPNativeData</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">IBinder</span><span class="o">*</span> <span class="n">target</span> <span class="o">=</span> <span class="n">nd</span><span class="o">-</span><span class="o">&gt;</span><span class="n">mObject</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+ 
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">target</span><span class="o">-</span><span class="o">&gt;</span><span class="n">localBinder</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">DeathRecipientList</span><span class="o">*</span> <span class="n">list</span> <span class="o">=</span> <span class="n">nd</span><span class="o">-</span><span class="o">&gt;</span><span class="n">mOrgue</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+        <span class="n">sp</span><span class="o">&lt;</span><span class="n">JavaDeathRecipient</span><span class="o">&gt;</span> <span class="n">jdr</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JavaDeathRecipient</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">recipient</span><span class="p">,</span> <span class="n">list</span><span class="p">)</span><span class="p">;</span>
+        <span class="n">status_t</span> <span class="n">err</span> <span class="o">=</span> <span class="n">target</span><span class="o">-</span><span class="o">&gt;</span><span class="n">linkToDeath</span><span class="p">(</span><span class="n">jdr</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span><span class="p">;</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; 2
+</span><span class="c1"></span>        <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="k">class</span> <span class="nc">JavaDeathRecipient</span> <span class="o">:</span> <span class="k">public</span> <span class="n">IBinder</span><span class="o">:</span><span class="o">:</span><span class="n">DeathRecipient</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+    <span class="n">JavaDeathRecipient</span><span class="p">(</span><span class="n">JNIEnv</span><span class="o">*</span> <span class="n">env</span><span class="p">,</span> <span class="n">jobject</span> <span class="n">object</span><span class="p">,</span> <span class="k">const</span> <span class="n">sp</span><span class="o">&lt;</span><span class="n">DeathRecipientList</span><span class="o">&gt;</span><span class="o">&amp;</span> <span class="n">list</span><span class="p">)</span>
+        <span class="o">:</span> <span class="n">mVM</span><span class="p">(</span><span class="n">jnienv_to_javavm</span><span class="p">(</span><span class="n">env</span><span class="p">)</span><span class="p">)</span><span class="p">,</span> <span class="n">mObject</span><span class="p">(</span><span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">NewGlobalRef</span><span class="p">(</span><span class="n">object</span><span class="p">)</span><span class="p">)</span><span class="p">,</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; 3
+</span><span class="c1"></span>          <span class="n">mObjectWeak</span><span class="p">(</span><span class="nb">NULL</span><span class="p">)</span><span class="p">,</span> <span class="n">mList</span><span class="p">(</span><span class="n">list</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// These objects manage their own lifetimes so are responsible for final bookkeeping.
+</span><span class="c1"></span>        <span class="c1">// The list holds a strong reference to this object.
+</span><span class="c1"></span>        <span class="n">list</span><span class="o">-</span><span class="o">&gt;</span><span class="n">add</span><span class="p">(</span><span class="k">this</span><span class="p">)</span><span class="p">;</span>
+ 
+        <span class="n">gNumDeathRefsCreated</span><span class="p">.</span><span class="n">fetch_add</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">memory_order_relaxed</span><span class="p">)</span><span class="p">;</span>
+        <span class="n">gcIfManyNewRefs</span><span class="p">(</span><span class="n">env</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// art/runtime/jni_internal.cc
+</span><span class="c1"></span><span class="k">namespace</span> <span class="n">art</span> <span class="p">{</span>
+<span class="k">static</span> <span class="n">jobject</span> <span class="nf">NewGlobalRef</span><span class="p">(</span><span class="n">JNIEnv</span><span class="o">*</span> <span class="n">env</span><span class="p">,</span> <span class="n">jobject</span> <span class="n">obj</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">ScopedObjectAccess</span> <span class="n">soa</span><span class="p">(</span><span class="n">env</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">decoded_obj</span> <span class="o">=</span> <span class="n">soa</span><span class="p">.</span><span class="n">Decode</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">soa</span><span class="p">.</span><span class="n">Vm</span><span class="p">(</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">AddGlobalRef</span><span class="p">(</span><span class="n">soa</span><span class="p">.</span><span class="n">Self</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">decoded_obj</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+ 
+<span class="c1">// art/runtime/java_vm_ext.cc
+</span><span class="c1"></span><span class="k">static</span> <span class="k">constexpr</span> <span class="n">size_t</span> <span class="n">kGlobalsMax</span> <span class="o">=</span> <span class="mi">51200</span><span class="p">;</span>  <span class="c1">// Arbitrary sanity check. (Must fit in 16 bits.)
+</span><span class="c1"></span> 
+<span class="n">jobject</span> <span class="n">JavaVMExt</span><span class="o">:</span><span class="o">:</span><span class="n">AddGlobalRef</span><span class="p">(</span><span class="n">Thread</span><span class="o">*</span> <span class="n">self</span><span class="p">,</span> <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">obj</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Check for null after decoding the object to handle cleared weak globals.
+</span><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="n">obj</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="n">IndirectRef</span> <span class="n">ref</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">error_msg</span><span class="p">;</span>
+  <span class="p">{</span>
+    <span class="n">WriterMutexLock</span> <span class="nf">mu</span><span class="p">(</span><span class="n">self</span><span class="p">,</span> <span class="o">*</span><span class="n">Locks</span><span class="o">:</span><span class="o">:</span><span class="n">jni_globals_lock_</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">globals_</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="n">kIRTFirstSegment</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">error_msg</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">UNLIKELY</span><span class="p">(</span><span class="n">ref</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">error_msg</span><span class="p">;</span>
+    <span class="n">UNREACHABLE</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="n">CheckGlobalRefAllocationTracking</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">jobject</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// art/runtime/indirect_reference_table.cc
+</span><span class="c1"></span><span class="n">IndirectRef</span> <span class="n">IndirectReferenceTable</span><span class="o">:</span><span class="o">:</span><span class="n">Add</span><span class="p">(</span><span class="n">IRTSegmentState</span> <span class="n">previous_state</span><span class="p">,</span>
+                                        <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">obj</span><span class="p">,</span>
+                                        <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span><span class="o">*</span> <span class="n">error_msg</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">size_t</span> <span class="n">top_index</span> <span class="o">=</span> <span class="n">segment_state_</span><span class="p">.</span><span class="n">top_index</span><span class="p">;</span>
+ 
+  <span class="n">CHECK</span><span class="p">(</span><span class="n">obj</span> <span class="o">!</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">;</span>
+  <span class="n">VerifyObject</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="p">;</span>
+  <span class="n">DCHECK</span><span class="p">(</span><span class="n">table_</span> <span class="o">!</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">;</span>
+ 
+  <span class="k">if</span> <span class="p">(</span><span class="n">top_index</span> <span class="o">=</span><span class="o">=</span> <span class="n">max_entries_</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">resizable_</span> <span class="o">=</span><span class="o">=</span> <span class="n">ResizableCapacity</span><span class="o">:</span><span class="o">:</span><span class="n">kNo</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">ostringstream</span> <span class="n">oss</span><span class="p">;</span>
+      <span class="n">oss</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">JNI ERROR (app bug): </span><span class="s">&#34;</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">kind_</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> table overflow </span><span class="s">&#34;</span>
+          <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">(max=</span><span class="s">&#34;</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">max_entries_</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">)</span><span class="s">&#34;</span>
+          <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">MutatorLockedDumpable</span><span class="o">&lt;</span><span class="n">IndirectReferenceTable</span><span class="o">&gt;</span><span class="p">(</span><span class="o">*</span><span class="k">this</span><span class="p">)</span><span class="p">;</span>
+      <span class="o">*</span><span class="n">error_msg</span> <span class="o">=</span> <span class="n">oss</span><span class="p">.</span><span class="n">str</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>global reference泄漏，那么就需要去看一下到底这些引用指向的是谁，aosp原本的逻辑是发生这种情况时会把所有的reference信息输出到logcat里，但是由于logd进程的日志缓冲区有限，等待测试同学发现手机重启后，可能已经过了好一段时间，前面打印的信息早就被冲掉了，不过，还好同事之前进过代码，在系统重启前会把所有的global reference的信息给持久化到了dropbox里，复现后只要检查下/data/system/dropbox目录，我们就能看到：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-bash" data-lang="bash">Summary:
+  <span class="m">41380</span> of android.os.RemoteCallbackList<span class="nv">$Callback</span> <span class="o">(</span><span class="m">41380</span> unique instances<span class="o">)</span>
+   <span class="m">6506</span> of java.lang.ref.WeakReference <span class="o">(</span><span class="m">6506</span> unique instances<span class="o">)</span>
+    <span class="m">696</span> of android.app.LoadedApk<span class="nv">$ServiceDispatcher</span><span class="nv">$DeathMonitor</span> <span class="o">(</span><span class="m">696</span> unique instances<span class="o">)</span>
+    <span class="m">682</span> of com.android.server.accounts.AccountManagerService<span class="nv">$8</span> <span class="o">(</span><span class="m">680</span> unique instances<span class="o">)</span>
+    <span class="m">451</span> of java.lang.Class <span class="o">(</span><span class="m">279</span> unique instances<span class="o">)</span>
+    <span class="m">266</span> of com.android.server.content.ContentService<span class="nv">$ObserverNode</span><span class="nv">$ObserverEntry</span> <span class="o">(</span><span class="m">266</span> unique instances<span class="o">)</span>
+    <span class="m">188</span> of java.nio.DirectByteBuffer <span class="o">(</span><span class="m">175</span> unique instances<span class="o">)</span>
+    <span class="m">128</span> of java.lang.Object<span class="o">[</span><span class="o">]</span> <span class="o">(</span><span class="m">6</span> elements<span class="o">)</span> <span class="o">(</span><span class="m">128</span> unique instances<span class="o">)</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>可以确定也是RemoteCallbackList$Callback的问题了，那再看下具体代码：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">RemoteCallbackList</span><span class="o">&lt;</span><span class="n">E</span> <span class="kd">extends</span> <span class="n">IInterface</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="cm">/*package*/</span> <span class="n">ArrayMap</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">,</span> <span class="n">Callback</span><span class="o">&gt;</span> <span class="n">mCallbacks</span>
+            <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayMap</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">,</span> <span class="n">Callback</span><span class="o">&gt;</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="kd">class</span> <span class="nc">Callback</span> <span class="kd">implements</span> <span class="n">IBinder</span><span class="o">.</span><span class="na">DeathRecipient</span> <span class="o">{</span>
+        <span class="kd">final</span> <span class="n">E</span> <span class="n">mCallback</span><span class="o">;</span>
+        <span class="kd">final</span> <span class="n">Object</span> <span class="n">mCookie</span><span class="o">;</span>
+ 
+        <span class="n">Callback</span><span class="o">(</span><span class="n">E</span> <span class="n">callback</span><span class="o">,</span> <span class="n">Object</span> <span class="n">cookie</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">mCallback</span> <span class="o">=</span> <span class="n">callback</span><span class="o">;</span>
+            <span class="n">mCookie</span> <span class="o">=</span> <span class="n">cookie</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+    <span class="o">}</span>
+ 
+    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">register</span><span class="o">(</span><span class="n">E</span> <span class="n">callback</span><span class="o">,</span> <span class="n">Object</span> <span class="n">cookie</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">synchronized</span> <span class="o">(</span><span class="n">mCallbacks</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">mKilled</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+            <span class="o">}</span>
+            <span class="c1">// Flag unusual case that could be caused by a leak. b/36778087
+</span><span class="c1"></span>            <span class="n">logExcessiveCallbacks</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+            <span class="n">IBinder</span> <span class="n">binder</span> <span class="o">=</span> <span class="n">callback</span><span class="o">.</span><span class="na">asBinder</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+ 
+            <span class="k">try</span> <span class="o">{</span>
+                <span class="n">Callback</span> <span class="n">cb</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Callback</span><span class="o">(</span><span class="n">callback</span><span class="o">,</span> <span class="n">cookie</span><span class="o">)</span><span class="o">;</span>
+                <span class="n">binder</span><span class="o">.</span><span class="na">linkToDeath</span><span class="o">(</span><span class="n">cb</span><span class="o">,</span> <span class="n">0</span><span class="o">)</span><span class="o">;</span> <span class="c1">// &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+</span><span class="c1"></span>                <span class="n">mCallbacks</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="n">binder</span><span class="o">,</span> <span class="n">cb</span><span class="o">)</span><span class="o">;</span>
+                <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
+            <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">RemoteException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>再回头看下linkToDeath的底层实现，native层的JavaDeathRecipient的构造函数，就比较清楚了，system_server进程的BinderProxy对象注册了太多的死亡回调，导致global reference table爆了，这个问题跟BinderProxy泄漏应该是有关联的，所以接下来只要确认这些BinderProxy具体是谁。</p>
+<h2 id="binderproxy">增加调试代码，输出BinderProxy详细信息</h2>
+<p>先看下打印global reference table的代码：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// art/runtime/reference_table.cc
+</span><span class="c1"></span><span class="kt">void</span> <span class="n">ReferenceTable</span><span class="o">:</span><span class="o">:</span><span class="n">Dump</span><span class="p">(</span><span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">ostream</span><span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">Table</span><span class="o">&amp;</span> <span class="n">entries</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// 打印最后使用的10个reference实际的类型
+</span><span class="c1"></span>  <span class="k">const</span> <span class="n">size_t</span> <span class="n">kLast</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+  <span class="n">size_t</span> <span class="n">count</span> <span class="o">=</span> <span class="n">entries</span><span class="p">.</span><span class="n">size</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">first</span> <span class="o">=</span> <span class="n">count</span> <span class="o">-</span> <span class="n">kLast</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">first</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="n">os</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">  Last </span><span class="s">&#34;</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="p">(</span><span class="n">count</span> <span class="o">-</span> <span class="n">first</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> entries (of </span><span class="s">&#34;</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">count</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">):</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+  <span class="n">Runtime</span><span class="o">*</span> <span class="n">runtime</span> <span class="o">=</span> <span class="n">Runtime</span><span class="o">:</span><span class="o">:</span><span class="n">Current</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">idx</span> <span class="o">&gt;</span><span class="o">=</span> <span class="n">first</span><span class="p">;</span> <span class="o">-</span><span class="o">-</span><span class="n">idx</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">ref</span> <span class="o">=</span> <span class="n">entries</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="p">.</span><span class="n">Read</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ref</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">continue</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">runtime</span><span class="o">-</span><span class="o">&gt;</span><span class="n">IsClearedJniWeakGlobal</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">os</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">    %5d: cleared jweak</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">continue</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetClass</span><span class="p">(</span><span class="p">)</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// should only be possible right after a plain dvmMalloc().
+</span><span class="c1"></span>      <span class="n">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">SizeOf</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+      <span class="n">os</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">    %5d: %p (raw) (%zd bytes)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">ref</span><span class="p">.</span><span class="n">Ptr</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">continue</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">className</span><span class="p">(</span><span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">PrettyTypeOf</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+
+    <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">extras</span><span class="p">;</span>
+    <span class="n">size_t</span> <span class="n">element_count</span> <span class="o">=</span> <span class="n">GetElementCount</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">element_count</span> <span class="o">!</span><span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">StringAppendF</span><span class="p">(</span><span class="o">&amp;</span><span class="n">extras</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> (%zd elements)</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">element_count</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetClass</span><span class="p">(</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">IsStringClass</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">s</span> <span class="o">=</span> <span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">AsString</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+      <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">utf8</span><span class="p">(</span><span class="n">s</span><span class="o">-</span><span class="o">&gt;</span><span class="n">ToModifiedUtf8</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetLength</span><span class="p">(</span><span class="p">)</span> <span class="o">&lt;</span><span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">StringAppendF</span><span class="p">(</span><span class="o">&amp;</span><span class="n">extras</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> </span><span class="se">\&#34;</span><span class="s">%s</span><span class="se">\&#34;</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">utf8</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">StringAppendF</span><span class="p">(</span><span class="o">&amp;</span><span class="n">extras</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> </span><span class="se">\&#34;</span><span class="s">%.16s... (%d chars)</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">utf8</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">s</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetLength</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">IsReferenceInstance</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// 指向WeakReference/SoftReference/...对象，则打印被它引用对象类型
+</span><span class="c1"></span>      <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">referent</span> <span class="o">=</span> <span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">AsReference</span><span class="p">(</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetReferent</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">referent</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">extras</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> (referent is null)</span><span class="s">&#34;</span><span class="p">;</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">extras</span> <span class="o">=</span> <span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s"> (referent is a %s)</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">referent</span><span class="o">-</span><span class="o">&gt;</span><span class="n">PrettyTypeOf</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>   
+    <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+  <span class="c1">// 统计每种类型的对象的数量
+</span><span class="c1"></span>  <span class="n">os</span> <span class="o">&lt;</span><span class="o">&lt;</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">  Summary:</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="n">SummaryElement</span><span class="o">&amp;</span> <span class="nl">elem</span> <span class="p">:</span> <span class="n">sorted_summaries</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">elemObj</span> <span class="o">=</span> <span class="n">elem</span><span class="p">.</span><span class="n">root</span><span class="p">.</span><span class="n">Read</span><span class="o">&lt;</span><span class="n">kWithoutReadBarrier</span><span class="o">&gt;</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">DumpSummaryLine</span><span class="p">(</span><span class="n">os</span><span class="p">,</span> <span class="n">elemObj</span><span class="p">,</span> <span class="n">GetElementCount</span><span class="p">(</span><span class="n">elemObj</span><span class="p">)</span><span class="p">,</span> <span class="n">elem</span><span class="p">.</span><span class="n">identical</span><span class="p">,</span> <span class="n">elem</span><span class="p">.</span><span class="n">equiv</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>BinderProxy.getInterfaceDescriptor()方法，它返回一个描述其信息的字符串，所以只要在上面的代码判断下reference指向对象的类型，如果是BinderProxy的话，则顺便也输出下interfaceDescriptor，而如果是RemoteCallbackList$Callback类型的话，也是一样地输出其内部存储的callback对象的interfaceDescriptor：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="kt">void</span> <span class="n">ReferenceTable</span><span class="o">:</span><span class="o">:</span><span class="n">Dump</span><span class="p">(</span><span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">ostream</span><span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">Table</span><span class="o">&amp;</span> <span class="n">entries</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// 打印所有的reference
+</span><span class="c1"></span>    <span class="k">const</span> <span class="n">size_t</span> <span class="n">kLast</span> <span class="o">=</span> <span class="mi">51200</span><span class="p">;</span>
+    <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+    <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">CALLBACK_STR</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">android.os.RemoteCallbackList$Callback</span><span class="s">&#34;</span><span class="p">;</span>
+    <span class="n">ScopedLocalRef</span><span class="o">&lt;</span><span class="n">jclass</span><span class="o">&gt;</span> <span class="n">classbackClazz</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">FindClass</span><span class="p">(</span><span class="n">CALLBACK_STR</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">jmethodID</span> <span class="n">getCallbackInfo</span> <span class="o">=</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetMethodID</span><span class="p">(</span><span class="n">classbackClazz</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+                                       <span class="sa"></span><span class="s">&#34;</span><span class="s">getCallbackInfo</span><span class="s">&#34;</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">()Ljava/lang/String;</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+	<span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span> <span class="n">BINDER_PROXY_TYPE</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">android.os.BinderProxy</span><span class="s">&#34;</span><span class="p">;</span>
+	<span class="n">ScopedLocalRef</span><span class="o">&lt;</span><span class="n">jclass</span><span class="o">&gt;</span> <span class="n">binderProxyClazz</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">FindClass</span><span class="p">(</span><span class="n">BINDER_PROXY_TYPE</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+	<span class="n">jmethodID</span> <span class="n">getInterfaceDescriptor</span> <span class="o">=</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetMethodID</span><span class="p">(</span><span class="n">binderProxyClazz</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+                                                <span class="sa"></span><span class="s">&#34;</span><span class="s">getInterfaceDescriptorV2</span><span class="s">&#34;</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">()Ljava/lang/String;</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+	<span class="p">.</span><span class="p">.</span><span class="p">.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">IsReferenceInstance</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// 指向WeakReference/SoftReference对象，则打印被它引用的对象类型
+</span><span class="c1"></span>        <span class="n">ObjPtr</span><span class="o">&lt;</span><span class="n">mirror</span><span class="o">:</span><span class="o">:</span><span class="n">Object</span><span class="o">&gt;</span> <span class="n">referent</span> <span class="o">=</span> <span class="n">ref</span><span class="o">-</span><span class="o">&gt;</span><span class="n">AsReference</span><span class="p">(</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetReferent</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">referent</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">extras</span> <span class="o">=</span> <span class="sa"></span><span class="s">&#34;</span><span class="s"> (referent is null)</span><span class="s">&#34;</span><span class="p">;</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">extras</span> <span class="o">=</span> <span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s"> (referent is a %s)</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">referent</span><span class="o">-</span><span class="o">&gt;</span><span class="n">PrettyTypeOf</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">referent</span><span class="o">-</span><span class="o">&gt;</span><span class="n">PrettyTypeOf</span><span class="p">(</span><span class="p">)</span> <span class="o">=</span><span class="o">=</span> <span class="n">BINDER_PROXY_TYPE</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">ScopedLocalRef</span><span class="o">&lt;</span><span class="n">jobject</span><span class="o">&gt;</span> <span class="n">binderProxy</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">env_ext</span><span class="o">-</span><span class="o">&gt;</span><span class="n">NewLocalRef</span><span class="p">(</span><span class="n">referent</span><span class="p">.</span><span class="n">Ptr</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+                <span class="n">ScopedLocalRef</span><span class="o">&lt;</span><span class="n">jstring</span><span class="o">&gt;</span> <span class="n">descriptorStr</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">jstring</span><span class="p">)</span> <span class="p">(</span><span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">CallObjectMethod</span><span class="p">(</span><span class="n">binderProxy</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">getInterfaceDescriptor</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">descriptorStr</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span> <span class="o">!</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">descriptorChars</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+                    <span class="n">descriptorChars</span> <span class="o">=</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetStringUTFChars</span><span class="p">(</span><span class="n">descriptorStr</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">;</span>
+                    <span class="k">if</span><span class="p">(</span><span class="n">descriptorChars</span><span class="p">)</span> <span class="p">{</span>
+                      <span class="n">extras</span> <span class="o">=</span> <span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s"> (referent is a %s) </span><span class="s">&#34;</span><span class="p">,</span>
+                                            <span class="n">referent</span><span class="o">-</span><span class="o">&gt;</span><span class="n">PrettyTypeOf</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="n">c_str</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">descriptorChars</span><span class="p">)</span><span class="p">;</span>
+                      <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">ReleaseStringUTFChars</span><span class="p">(</span><span class="n">descriptorStr</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">descriptorChars</span><span class="p">)</span><span class="p">;</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">className</span> <span class="o">=</span><span class="o">=</span> <span class="n">CALLBACK_STR</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">ScopedLocalRef</span> <span class="o">&lt;</span><span class="n">jobject</span><span class="o">&gt;</span> <span class="n">callback</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">env_ext</span><span class="o">-</span><span class="o">&gt;</span><span class="n">NewLocalRef</span><span class="p">(</span><span class="n">ref</span><span class="p">.</span><span class="n">Ptr</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+            <span class="n">ScopedLocalRef</span> <span class="o">&lt;</span><span class="n">jstring</span><span class="o">&gt;</span> <span class="n">infoStr</span><span class="p">(</span><span class="n">env</span><span class="p">,</span>
+                                             <span class="p">(</span><span class="n">jstring</span><span class="p">)</span><span class="p">(</span><span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">CallObjectMethod</span><span class="p">(</span><span class="n">callback</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">getCallbackInfo</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">infoStr</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span> <span class="o">!</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">descriptorChars</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+                <span class="n">descriptorChars</span> <span class="o">=</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">GetStringUTFChars</span><span class="p">(</span><span class="n">infoStr</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">descriptorChars</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="n">extras</span> <span class="o">=</span> <span class="n">StringPrintf</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s"> ( is a %s) </span><span class="s">&#34;</span><span class="p">,</span> <span class="n">descriptorChars</span><span class="p">)</span><span class="p">;</span>
+                    <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">ReleaseStringUTFChars</span><span class="p">(</span><span class="n">infoStr</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">descriptorChars</span><span class="p">)</span><span class="p">;</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>对应的需要修改下Binder.java和RemoteCallbackList.java等文件，添加如下方法：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// frameworks/base/core/jni/android_util_Binder.cpp
+</span><span class="c1"></span><span class="k">public</span> <span class="n">interface</span> <span class="n">IBinder</span> <span class="p">{</span>
+    <span class="cm">/**
+</span><span class="cm">     * IBinder protocol transaction code: interrogate the recipient side
+</span><span class="cm">     * of the transaction for its canonical interface descriptor.
+</span><span class="cm">     */</span>
+    <span class="kt">int</span> <span class="n">INTERFACE_TRANSACTION</span>   <span class="o">=</span> <span class="p">(</span><span class="sa"></span><span class="sc">&#39;</span><span class="sc">_</span><span class="sc">&#39;</span><span class="o">&lt;</span><span class="o">&lt;</span><span class="mi">24</span><span class="p">)</span><span class="o">|</span><span class="p">(</span><span class="sa"></span><span class="sc">&#39;</span><span class="sc">N</span><span class="sc">&#39;</span><span class="o">&lt;</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">)</span><span class="o">|</span><span class="p">(</span><span class="sa"></span><span class="sc">&#39;</span><span class="sc">T</span><span class="sc">&#39;</span><span class="o">&lt;</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">)</span><span class="o">|</span><span class="sa"></span><span class="sc">&#39;</span><span class="sc">F</span><span class="sc">&#39;</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">INTERFACE_TRANSACTION_V2</span> <span class="o">=</span> <span class="n">INTERFACE_TRANSACTION</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// frameworks/base/core/java/android/os/Binder.java
+</span><span class="c1"></span><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Binder</span> <span class="kd">implements</span> <span class="n">IBinder</span> <span class="o">{</span>
+    
+    <span class="c1">// 为避免调试代码对正常流程造成影响，增加这个V2方法，而不是用原生的getInterfaceDescriptor，
+</span><span class="c1"></span>    <span class="c1">// 这样我们可以定制更详细的信息返回值
+</span><span class="c1"></span>    <span class="kd">public</span> <span class="n">String</span> <span class="nf">getInterfaceDescriptorV2</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+ 		<span class="n">String</span> <span class="n">descriptor</span> <span class="o">=</span> <span class="n">mDescriptor</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">android</span><span class="o">.</span><span class="na">text</span><span class="o">.</span><span class="na">TextUtils</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">(</span><span class="n">descriptor</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">descriptor</span> <span class="o">=</span> <span class="n">toString</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">descriptor</span> <span class="o">+</span><span class="o">=</span> <span class="s">&#34;@&#34;</span> <span class="o">+</span> <span class="n">Integer</span><span class="o">.</span><span class="na">toHexString</span><span class="o">(</span><span class="n">hashCode</span><span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="n">String</span> <span class="n">processName</span> <span class="o">=</span> <span class="n">android</span><span class="o">.</span><span class="na">app</span><span class="o">.</span><span class="na">ActivityThread</span><span class="o">.</span><span class="na">currentProcessName</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">android</span><span class="o">.</span><span class="na">text</span><span class="o">.</span><span class="na">TextUtils</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">(</span><span class="n">processName</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">processName</span> <span class="o">=</span> <span class="s">&#34;system_server&#34;</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">processName</span> <span class="o">+</span> <span class="s">&#34;-u&#34;</span> <span class="o">+</span> <span class="n">Process</span><span class="o">.</span><span class="na">myUid</span><span class="o">(</span><span class="o">)</span> <span class="o">+</span> <span class="s">&#34;-p&#34;</span> <span class="o">+</span> <span class="n">Process</span><span class="o">.</span><span class="na">myPid</span><span class="o">(</span><span class="o">)</span> <span class="o">+</span> <span class="s">&#34;-&#34;</span> <span class="o">+</span> <span class="n">descriptor</span><span class="o">;</span>
+    <span class="o">}</span>
+    
+    <span class="kd">private</span> <span class="kt">boolean</span> <span class="nf">execTransact</span><span class="o">(</span><span class="kt">int</span> <span class="n">code</span><span class="o">,</span> <span class="kt">long</span> <span class="n">dataObj</span><span class="o">,</span> <span class="kt">long</span> <span class="n">replyObj</span><span class="o">,</span>
+            <span class="kt">int</span> <span class="n">flags</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">code</span> <span class="o">=</span><span class="o">=</span> <span class="n">INTERFACE_TRANSACTION_V2</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">reply</span><span class="o">.</span><span class="na">writeString</span><span class="o">(</span><span class="n">getInterfaceDescriptorV2</span><span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="kc">true</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">onTransact</span><span class="o">(</span><span class="n">code</span><span class="o">,</span> <span class="n">data</span><span class="o">,</span> <span class="n">reply</span><span class="o">,</span> <span class="n">flags</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+    <span class="o">}</span>
+    
+<span class="kd">final</span> <span class="kd">class</span> <span class="nc">BinderProxy</span> <span class="kd">implements</span> <span class="n">IBinder</span> <span class="o">{</span>
+        <span class="kd">public</span> <span class="kd">native</span> <span class="n">String</span> <span class="nf">getInterfaceDescriptorV2</span><span class="o">(</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">RemoteException</span><span class="o">;</span>
+<span class="o">.</span><span class="o">.</span><span class="o">.</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>相应的需要在native层增加getInterfaceDescriptorV2()函数</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// frameworks/base/core/jni/android_util_Binder.cpp
+</span><span class="c1"></span><span class="k">static</span> <span class="n">jstring</span> <span class="nf">android_os_BinderProxy_getInterfaceDescriptorV2</span><span class="p">(</span><span class="n">JNIEnv</span><span class="o">*</span> <span class="n">env</span><span class="p">,</span> <span class="n">jobject</span> <span class="n">obj</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">IBinder</span><span class="o">*</span> <span class="n">target</span> <span class="o">=</span> <span class="n">getBPNativeData</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">mObject</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+    <span class="n">BpBinder</span><span class="o">*</span> <span class="n">proxy</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">BpBinder</span><span class="o">*</span><span class="o">&gt;</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">proxy</span> <span class="o">!</span><span class="o">=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="n">String16</span><span class="o">&amp;</span> <span class="n">desc</span> <span class="o">=</span> <span class="n">proxy</span><span class="o">-</span><span class="o">&gt;</span><span class="n">getInterfaceDescriptorV2</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">return</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">NewString</span><span class="p">(</span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">jchar</span><span class="o">*</span><span class="o">&gt;</span><span class="p">(</span><span class="n">desc</span><span class="p">.</span><span class="n">string</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">,</span>
+                              <span class="n">desc</span><span class="p">.</span><span class="n">size</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">target</span> <span class="o">!</span><span class="o">=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="n">String16</span><span class="o">&amp;</span> <span class="n">desc</span> <span class="o">=</span> <span class="n">target</span><span class="o">-</span><span class="o">&gt;</span><span class="n">getInterfaceDescriptor</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">return</span> <span class="n">env</span><span class="o">-</span><span class="o">&gt;</span><span class="n">NewString</span><span class="p">(</span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">jchar</span><span class="o">*</span><span class="o">&gt;</span><span class="p">(</span><span class="n">desc</span><span class="p">.</span><span class="n">string</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">,</span>
+                              <span class="n">desc</span><span class="p">.</span><span class="n">size</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">jniThrowException</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">java/lang/RuntimeException</span><span class="s">&#34;</span><span class="p">,</span>
+                      <span class="sa"></span><span class="s">&#34;</span><span class="s">No binder found for object</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c1">// 注册JNI方法
+</span><span class="c1"></span><span class="k">static</span> <span class="k">const</span> <span class="n">JNINativeMethod</span> <span class="n">gBinderProxyMethods</span><span class="p">[</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+ <span class="p">{</span><span class="sa"></span><span class="s">&#34;</span><span class="s">getInterfaceDescriptorV2</span><span class="s">&#34;</span><span class="p">,</span> <span class="sa"></span><span class="s">&#34;</span><span class="s">()Ljava/lang/String;</span><span class="s">&#34;</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="n">android_os_BinderProxy_getInterfaceDescriptorV2</span><span class="p">}</span><span class="p">,</span>
+</code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"> <span class="c1">// frameworks/base/core/java/android/os/RemoteCallbackList.java
+</span><span class="c1"></span> <span class="kd">private</span> <span class="kd">final</span> <span class="kd">class</span> <span class="nc">Callback</span> <span class="kd">implements</span> <span class="n">IBinder</span><span class="o">.</span><span class="na">DeathRecipient</span> <span class="o">{</span>
+     <span class="kd">final</span> <span class="n">E</span> <span class="n">mCallback</span><span class="o">;</span>
+     <span class="kd">final</span> <span class="n">Object</span> <span class="n">mCookie</span><span class="o">;</span>
+
+     <span class="n">Callback</span><span class="o">(</span><span class="n">E</span> <span class="n">callback</span><span class="o">,</span> <span class="n">Object</span> <span class="n">cookie</span><span class="o">)</span> <span class="o">{</span>
+         <span class="n">mCallback</span> <span class="o">=</span> <span class="n">callback</span><span class="o">;</span>
+         <span class="n">mCookie</span> <span class="o">=</span> <span class="n">cookie</span><span class="o">;</span>
+     <span class="o">}</span>
+
+     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">binderDied</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+         <span class="kd">synchronized</span> <span class="o">(</span><span class="n">mCallbacks</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">mCallbacks</span><span class="o">.</span><span class="na">remove</span><span class="o">(</span><span class="n">mCallback</span><span class="o">.</span><span class="na">asBinder</span><span class="o">(</span><span class="o">)</span><span class="o">)</span><span class="o">;</span>
+         <span class="o">}</span>
+         <span class="n">onCallbackDied</span><span class="o">(</span><span class="n">mCallback</span><span class="o">,</span> <span class="n">mCookie</span><span class="o">)</span><span class="o">;</span>
+
+         <span class="kd">public</span> <span class="n">String</span> <span class="nf">getCallbackInfo</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+             <span class="n">String</span> <span class="n">result</span> <span class="o">=</span> <span class="s">&#34;&#34;</span><span class="o">;</span>
+             <span class="n">IBinder</span> <span class="n">binder</span> <span class="o">=</span> <span class="n">mCallback</span><span class="o">.</span><span class="na">asBinder</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+             <span class="k">if</span> <span class="o">(</span><span class="n">binder</span> <span class="k">instanceof</span> <span class="n">BinderProxy</span><span class="o">)</span> <span class="o">{</span>
+                 <span class="n">BinderProxy</span> <span class="n">proxy</span> <span class="o">=</span> <span class="o">(</span><span class="n">BinderProxy</span><span class="o">)</span> <span class="n">binder</span><span class="o">;</span>
+                 <span class="n">result</span> <span class="o">=</span> <span class="n">proxy</span><span class="o">.</span><span class="na">getInterfaceDescriptorV2</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+             <span class="o">}</span>
+             <span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+         <span class="o">}</span>
+     <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>OK，一切就续，下面就只要make framework &amp;&amp; make libart &amp;&amp; make lib_android_runtime, 然后把生成的so文件push到手机上对应的位置后，重启手机，稳定性测试一段事件后，连上debugger，手动执行下Debug.dumpReferenceTables()，发现依然没有打印出来的interfaceDescriptor都是空的，回看上面的BinderProxy.getInterfaceDescriptor()和BinderProxy.getInterfaceDescriptorV2()方法，它们实际都是个binder call，需要ipc到远端进程的调用Binder.getInterfaceDescriptorV2()，所以这儿可能的问题就是远端进程可能早就挂了，这个ipc肯定就失败了。</p>
+<h3 id="heading-1">再调整</h3>
+<p>既然binderProxy对应的远端进程可能会挂掉，那么在远端进程调用system_server的接口，写Binder对象的时候，顺便把它的interfaceDescriptor写入Parcel，一并发送给system_system，然后system_server进程收到binder调用时，把远端app进程的写入的interfaceDescriptor从parcel里反序列化出来，塞进对应的BinderProxy即可。</p>
+<p>考虑到system_server会或类似installd, sufaceflinger这类native进程进行binder call，所以像下面这样仅修改Parcel.java#writeStrongBinder()方法，<strong><font color="red">还不够稳妥</font></strong>：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Binder</span> <span class="kd">implements</span> <span class="n">IBinder</span> <span class="o">{</span>
+	<span class="kd">public</span> <span class="kd">final</span> <span class="kt">void</span> <span class="nf">writeStrongBinder</span><span class="o">(</span><span class="n">IBinder</span> <span class="n">val</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">String</span> <span class="n">desV2</span> <span class="o">=</span> <span class="s">&#34;&#34;</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">val</span> <span class="k">instanceof</span> <span class="n">Binder</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">desV2</span> <span class="o">=</span> <span class="o">(</span><span class="o">(</span><span class="n">Binder</span><span class="o">)</span><span class="n">val</span><span class="o">)</span><span class="o">.</span><span class="na">getInterfaceDescriptorV2</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="n">nativeWriteStrongBinder</span><span class="o">(</span><span class="n">mNativePtr</span><span class="o">,</span> <span class="n">val</span><span class="o">)</span><span class="o">;</span>
+        <span class="n">nativeWriteString</span><span class="o">(</span><span class="n">mNativePtr</span><span class="o">,</span> <span class="n">desV2</span><span class="o">)</span><span class="o">;</span>
+    <span class="o">}</span>
+    <span class="kd">public</span> <span class="kd">final</span> <span class="n">IBinder</span> <span class="nf">readStrongBinder</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">IBinder</span> <span class="n">iBinder</span> <span class="o">=</span> <span class="n">nativeReadStrongBinder</span><span class="o">(</span><span class="n">mNativePtr</span><span class="o">)</span><span class="o">;</span>
+        <span class="n">String</span> <span class="n">desV2</span> <span class="o">=</span> <span class="n">nativeReadString</span><span class="o">(</span><span class="n">mNativePtr</span><span class="o">)</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">iBinder</span> <span class="k">instanceof</span> <span class="n">BinderProxy</span><span class="o">)</span> <span class="o">{</span>
+            <span class="o">(</span><span class="o">(</span><span class="n">BinderProxy</span><span class="o">)</span><span class="n">iBinder</span><span class="o">)</span><span class="o">.</span><span class="na">descriptorV2</span> <span class="o">=</span> <span class="n">desV2</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">iBinder</span><span class="o">;</span>
+    <span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>否则可能因为序列化/反序列化时对parcel读写不一致，引入不必要的稳定性问题，那么就得换个方式，改libbinder的底层实现，因为不管是java进程还是native进程实际都是使用的libbinder：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-diff" data-lang="diff">// frameworks/base/core/jni/android_os_Parcel.cpp
+<span class="gd">--static void android_os_Parcel_writeStrongBinder(JNIEnv* env, jclass clazz, jlong nativePtr, jobject object)
+</span><span class="gd"></span><span class="gi">++static void android_os_Parcel_writeStrongBinder(JNIEnv* env, jclass clazz, jlong nativePtr, jobject object, jstring val)
+</span><span class="gi"></span>{
+    Parcel* parcel = reinterpret_cast&lt;Parcel*&gt;(nativePtr);
+    if (parcel != NULL) {
+<span class="gd">--        const status_t err = parcel-&gt;writeStrongBinder(ibinderForJavaObject(env, object));
+</span><span class="gd"></span><span class="gi">++        String16 s16;
+</span><span class="gi"></span><span class="gi">++        if (val) {
+</span><span class="gi"></span><span class="gi">++            const jchar* str = env-&gt;GetStringCritical(val, 0);
+</span><span class="gi"></span><span class="gi">++            if (str) {
+</span><span class="gi"></span><span class="gi">++                s16 = String16(reinterpret_cast&lt;const char16_t*&gt;(str), env-&gt;GetStringLength(val));
+</span><span class="gi"></span><span class="gi">++                env-&gt;ReleaseStringCritical(val, str);
+</span><span class="gi"></span><span class="gi">++            }
+</span><span class="gi"></span><span class="gi">++        }
+</span><span class="gi"></span><span class="gi">++        const status_t err = parcel-&gt;writeStrongBinderV2(ibinderForJavaObject(env, object), s16);
+</span><span class="gi"></span>        if (err != NO_ERROR) {
+            signalExceptionForError(env, clazz, err);
+        }
+    }
+}
+
+<span class="gd">--static jobject android_os_Parcel_readStrongBinder(JNIEnv* env, jclass clazz, jlong nativePtr)
+</span><span class="gd"></span><span class="gi">++static jobject android_os_Parcel_readStrongBinder(JNIEnv* env, jclass clazz, jlong nativePtr, jobjectArray stringArray)
+</span><span class="gi"></span>{
+    Parcel* parcel = reinterpret_cast&lt;Parcel*&gt;(nativePtr);
+    if (parcel != NULL) {
+<span class="gd">--        return javaObjectForIBinder(env, parcel-&gt;readStrongBinder());
+</span><span class="gd"></span><span class="gi">++        String16 out;
+</span><span class="gi"></span><span class="gi">++        jobject obj = javaObjectForIBinder(env, parcel-&gt;readStrongBinderV2(&amp;out));
+</span><span class="gi"></span><span class="gi">++        if (out.size() &gt; 0) {
+</span><span class="gi"></span><span class="gi">++            int stringCount = env-&gt;GetArrayLength(stringArray);
+</span><span class="gi"></span><span class="gi">++            if (stringCount &gt; 0) {
+</span><span class="gi"></span><span class="gi">++                jstring str = env-&gt;NewString(reinterpret_cast&lt;const jchar*&gt;(out.string()), out.size());
+</span><span class="gi"></span><span class="gi">++                env-&gt;SetObjectArrayElement(stringArray, 0, str);
+</span><span class="gi"></span><span class="gi">++            }
+</span><span class="gi"></span><span class="gi">++        }
+</span><span class="gi"></span><span class="gi">++        return obj;
+</span><span class="gi"></span>    }
+    return NULL;
+}
+
+// ----------------------------------------------------------------------------
+static const JNINativeMethod gParcelMethods[] = {
+<span class="gd">--    {&#34;nativeWriteStrongBinder&#34;,   &#34;(JLandroid/os/IBinder;)V&#34;, (void*)android_os_Parcel_writeStrongBinder},
+</span><span class="gd"></span><span class="gi">++    {&#34;nativeWriteStrongBinder&#34;,   &#34;(JLandroid/os/IBinder;Ljava/lang/String;)V&#34;, (void*)android_os_Parcel_writeStrongBinder},
+</span><span class="gi"></span>	...
+<span class="gd">--    {&#34;nativeReadStrongBinder&#34;,    &#34;(J)Landroid/os/IBinder;&#34;, (void*)android_os_Parcel_readStrongBinder},
+</span><span class="gd"></span><span class="gi">++    {&#34;nativeReadStrongBinder&#34;,    &#34;(J[Ljava/lang/String;)Landroid/os/IBinder;&#34;, (void*)android_os_Parcel_readStrongBinder},
+</span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span><span class="lnt">69
+</span><span class="lnt">70
+</span><span class="lnt">71
+</span><span class="lnt">72
+</span><span class="lnt">73
+</span><span class="lnt">74
+</span><span class="lnt">75
+</span><span class="lnt">76
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// frameworks/native/libs/binder/Parcel.cpp
+</span><span class="c1"></span><span class="n">sp</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">&gt;</span> <span class="n">Parcel</span><span class="o">:</span><span class="o">:</span><span class="n">readStrongBinderV2</span><span class="p">(</span><span class="n">String16</span><span class="o">*</span> <span class="n">outDescriptor</span><span class="p">)</span> <span class="k">const</span>
+<span class="p">{</span>
+    <span class="n">sp</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">&gt;</span> <span class="n">val</span><span class="p">;</span>
+    <span class="n">readNullableStrongBinder</span><span class="p">(</span><span class="o">&amp;</span><span class="n">val</span><span class="p">,</span> <span class="n">outDescriptor</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">val</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">status_t</span> <span class="n">Parcel</span><span class="o">:</span><span class="o">:</span><span class="n">writeStrongBinderV2</span><span class="p">(</span><span class="k">const</span> <span class="n">sp</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">&gt;</span><span class="o">&amp;</span> <span class="n">val</span><span class="p">,</span> <span class="k">const</span> <span class="n">String16</span><span class="o">&amp;</span> <span class="n">descritorV2</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="nf">flatten_binder</span><span class="p">(</span><span class="n">ProcessState</span><span class="o">:</span><span class="o">:</span><span class="n">self</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="k">this</span><span class="p">,</span> <span class="n">descritorV2</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">status_t</span> <span class="nf">unflatten_binder</span><span class="p">(</span><span class="k">const</span> <span class="n">sp</span><span class="o">&lt;</span><span class="n">ProcessState</span><span class="o">&gt;</span><span class="o">&amp;</span> <span class="n">proc</span><span class="p">,</span>
+    <span class="k">const</span> <span class="n">Parcel</span><span class="o">&amp;</span> <span class="n">in</span><span class="p">,</span> <span class="n">sp</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">&gt;</span><span class="o">*</span> <span class="n">out</span><span class="p">,</span> <span class="n">String16</span><span class="o">*</span> <span class="n">outDescriptor</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">const</span> <span class="n">flat_binder_object</span><span class="o">*</span> <span class="n">flat</span> <span class="o">=</span> <span class="n">in</span><span class="p">.</span><span class="n">readObject</span><span class="p">(</span><span class="nb">false</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">flat</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">outDescriptor</span><span class="p">)</span>
+            <span class="n">in</span><span class="p">.</span><span class="n">readString16</span><span class="p">(</span><span class="n">outDescriptor</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">else</span>
+            <span class="n">in</span><span class="p">.</span><span class="n">readString16</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">switch</span> <span class="p">(</span><span class="n">flat</span><span class="o">-</span><span class="o">&gt;</span><span class="n">hdr</span><span class="p">.</span><span class="n">type</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">case</span> <span class="nl">BINDER_TYPE_BINDER</span><span class="p">:</span>
+                <span class="o">*</span><span class="n">out</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">*</span><span class="o">&gt;</span><span class="p">(</span><span class="n">flat</span><span class="o">-</span><span class="o">&gt;</span><span class="n">cookie</span><span class="p">)</span><span class="p">;</span>
+                <span class="k">return</span> <span class="n">finish_unflatten_binder</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="o">*</span><span class="n">flat</span><span class="p">,</span> <span class="n">in</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">case</span> <span class="nl">BINDER_TYPE_HANDLE</span><span class="p">:</span>
+                <span class="o">*</span><span class="n">out</span> <span class="o">=</span> <span class="n">proc</span><span class="o">-</span><span class="o">&gt;</span><span class="n">getStrongProxyForHandle</span><span class="p">(</span><span class="n">flat</span><span class="o">-</span><span class="o">&gt;</span><span class="n">handle</span><span class="p">)</span><span class="p">;</span>
+                <span class="k">return</span> <span class="n">finish_unflatten_binder</span><span class="p">(</span>
+                    <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">BpBinder</span><span class="o">*</span><span class="o">&gt;</span><span class="p">(</span><span class="n">out</span><span class="o">-</span><span class="o">&gt;</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">,</span> <span class="o">*</span><span class="n">flat</span><span class="p">,</span> <span class="n">in</span><span class="p">)</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">BAD_TYPE</span><span class="p">;</span>
+<span class="p">}</span>
+ 
+<span class="n">status_t</span> <span class="nf">flatten_binder</span><span class="p">(</span><span class="k">const</span> <span class="n">sp</span><span class="o">&lt;</span><span class="n">ProcessState</span><span class="o">&gt;</span><span class="o">&amp;</span> <span class="cm">/*proc*/</span><span class="p">,</span>
+    <span class="k">const</span> <span class="n">sp</span><span class="o">&lt;</span><span class="n">IBinder</span><span class="o">&gt;</span><span class="o">&amp;</span> <span class="n">binder</span><span class="p">,</span> <span class="n">Parcel</span><span class="o">*</span> <span class="n">out</span><span class="p">,</span> <span class="k">const</span> <span class="n">String16</span><span class="o">&amp;</span> <span class="n">interface</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">flat_binder_object</span> <span class="n">obj</span><span class="p">;</span>
+ 
+    <span class="k">if</span> <span class="p">(</span><span class="n">IPCThreadState</span><span class="o">:</span><span class="o">:</span><span class="n">self</span><span class="p">(</span><span class="p">)</span><span class="o">-</span><span class="o">&gt;</span><span class="n">backgroundSchedulingDisabled</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+        <span class="cm">/* minimum priority for all nodes is nice 0 */</span>
+        <span class="n">obj</span><span class="p">.</span><span class="n">flags</span> <span class="o">=</span> <span class="n">FLAT_BINDER_FLAG_ACCEPTS_FDS</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="cm">/* minimum priority for all nodes is MAX_NICE(19) */</span>
+        <span class="n">obj</span><span class="p">.</span><span class="n">flags</span> <span class="o">=</span> <span class="mh">0x13</span> <span class="o">|</span> <span class="n">FLAT_BINDER_FLAG_ACCEPTS_FDS</span><span class="p">;</span>
+    <span class="p">}</span>
+ 
+    <span class="k">if</span> <span class="p">(</span><span class="n">binder</span> <span class="o">!</span><span class="o">=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">IBinder</span> <span class="o">*</span><span class="n">local</span> <span class="o">=</span> <span class="n">binder</span><span class="o">-</span><span class="o">&gt;</span><span class="n">localBinder</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">local</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">BpBinder</span> <span class="o">*</span><span class="n">proxy</span> <span class="o">=</span> <span class="n">binder</span><span class="o">-</span><span class="o">&gt;</span><span class="n">remoteBinder</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">proxy</span> <span class="o">=</span><span class="o">=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">ALOGE</span><span class="p">(</span><span class="sa"></span><span class="s">&#34;</span><span class="s">null proxy</span><span class="s">&#34;</span><span class="p">)</span><span class="p">;</span>
+            <span class="p">}</span>
+            <span class="k">const</span> <span class="kt">int32_t</span> <span class="n">handle</span> <span class="o">=</span> <span class="n">proxy</span> <span class="o">?</span> <span class="n">proxy</span><span class="o">-</span><span class="o">&gt;</span><span class="n">handle</span><span class="p">(</span><span class="p">)</span> <span class="o">:</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="n">obj</span><span class="p">.</span><span class="n">hdr</span><span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">BINDER_TYPE_HANDLE</span><span class="p">;</span> <span class="c1">// BINDER_TYPE_HANDLE即BpBinder,对应java层的BinderProxy
+</span><span class="c1"></span>            <span class="n">obj</span><span class="p">.</span><span class="n">binder</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="cm">/* Don&#39;t pass uninitialized stack data to a remote process */</span>
+            <span class="n">obj</span><span class="p">.</span><span class="n">handle</span> <span class="o">=</span> <span class="n">handle</span><span class="p">;</span>
+            <span class="n">obj</span><span class="p">.</span><span class="n">cookie</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">obj</span><span class="p">.</span><span class="n">hdr</span><span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">BINDER_TYPE_BINDER</span><span class="p">;</span> <span class="c1">// BINDER_TYPE_BINDER即BnBinder，对应java层的Binder
+</span><span class="c1"></span>            <span class="n">obj</span><span class="p">.</span><span class="n">binder</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">uintptr_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">local</span><span class="o">-</span><span class="o">&gt;</span><span class="n">getWeakRefs</span><span class="p">(</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+            <span class="n">obj</span><span class="p">.</span><span class="n">cookie</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">uintptr_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">obj</span><span class="p">.</span><span class="n">hdr</span><span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">BINDER_TYPE_BINDER</span><span class="p">;</span>
+        <span class="n">obj</span><span class="p">.</span><span class="n">binder</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="n">obj</span><span class="p">.</span><span class="n">cookie</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
+ 
+    <span class="n">status_t</span> <span class="n">status</span> <span class="o">=</span> <span class="n">finish_flatten_binder</span><span class="p">(</span><span class="n">binder</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">out</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">status</span> <span class="o">=</span><span class="o">=</span> <span class="n">NO_ERROR</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">out</span><span class="o">-</span><span class="o">&gt;</span><span class="n">writeString16</span><span class="p">(</span><span class="n">interface</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">status</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>同样BinderProxy.getInterfaceDescriptorV2()方法，去掉其native关键字，同时删除其对应的jni实现</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">final</span> <span class="kd">class</span> <span class="nc">BinderProxy</span> <span class="kd">implements</span> <span class="n">IBinder</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="n">String</span> <span class="n">descriptorV2</span> <span class="o">=</span> <span class="s">&#34;&#34;</span><span class="o">;</span>
+    <span class="kd">public</span> <span class="n">String</span> <span class="nf">getInterfaceDescriptorV2</span><span class="o">(</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">RemoteException</span><span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="o">!</span><span class="n">TextUtils</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">(</span><span class="n">descriptorV2</span><span class="o">)</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">return</span> <span class="n">descriptorV2</span><span class="o">;</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="s">&#34;unknown&#34;</span><span class="o">;</span>
+    <span class="o">}</span>
+   <span class="o">.</span><span class="o">.</span><span class="o">.</span>
+</code></pre></td></tr></table>
+</div>
+</div><p><em><font color="#666">注：在ipc时，binder驱动在序列化binder时，如果发现操作的是BnBinder对象，即类型是BINDER_TYPE_BINDER的，则实际会写入BINDER_TYPE_HANDLE类型，这样当ipc对端反序列化时，就会构造一个BpBinder对象表示原来的BnBinder对象；如果写入的就是BINDER_TYPE_HANDLE，则binder驱动写入的还是BINDER_TYPE_HANDLE类型。感兴趣的话可以看kernel/drivers/staging/android/Binder.c#binder_transaction() 的实现逻辑</font></em></p>
+<h2 id="heading-2">定位泄漏点</h2>
+<p>重新打包后，压测跑到6000多次，就复现了这个问题，查看转储到dropbox里的global reference table文件：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-bash" data-lang="bash">BinderProxy diagnosis: total size of <span class="m">21762</span>
+BinderProxy descriptor histogram <span class="o">(</span>top 100<span class="o">)</span>:
+ <span class="c1">#1: &lt;cleared weak-ref&gt; x128</span>
+ <span class="c1">#2: unknown x48</span>
+ <span class="c1">#3: com.android.bluetooth-u1002-p4845-android.bluetooth.IBluetoothHeadset@dbb6c2b x3</span>
+ <span class="c1">#4: com.android.bluetooth-u1002-p19850-android.bluetooth.IBluetoothHeadset@dbb6c2b x3</span>
+ <span class="c1">#5: com.android.bluetooth-u1002-p30548-android.bluetooth.IBluetoothHeadset@dbb6c2b x3</span>
+ <span class="c1">#6: com.android.bluetooth-u1002-p10107-android.bluetooth.IBluetoothHeadset@e035221 x3</span>
+ <span class="c1">#7: com.android.bluetooth-u1002-p8648-android.bluetooth.IBluetoothHeadset@dbb6c2b x3</span>
+ <span class="c1">#8: com.android.bluetooth-u1002-p27012-android.bluetooth.IBluetoothHeadset@dbb6c2b x3</span>
+ <span class="c1">#9: com.android.bluetooth-u1002-p2900-android.bluetooth.IBluetoothHeadset@dbb6c2b x3</span>
+ <span class="c1">#10: com.android.bluetooth-u1002-p12192-android.bluetooth.IBluetoothHeadset@dbb6c2b x2</span>
+ <span class="c1">#11: com.android.bluetooth-u1002-p20034-android.bluetooth.IBluetoothHidDevice@5c0c317 x2</span>
+ <span class="c1">#12: com.android.bluetooth-u1002-p9279-android.bluetooth.IBluetoothHeadset@dbb6c2b x2</span>
+...
+Per Uid Binder Proxy Counts:
+UID : <span class="m">1000</span>  <span class="nv">count</span> <span class="o">=</span> <span class="m">718</span>
+UID : <span class="m">1001</span>  <span class="nv">count</span> <span class="o">=</span> <span class="m">194</span>
+UID : <span class="m">1002</span>  <span class="nv">count</span> <span class="o">=</span> <span class="m">20262</span> // <span class="o">&lt;&lt;&lt;</span><span class="o">&lt;&lt;&lt;</span>&lt;&lt;
+UID : <span class="m">1027</span>  <span class="nv">count</span> <span class="o">=</span> <span class="m">21</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>都是指向蓝牙（uid=1002）进程的BinderProxy，同时我在系统crash前也打印了system_server挂掉前的heap profile，所以接下来先借助下Eclipse MAT来统计下所有的BinderProxy</p>
+<p><img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="binder-proxy-instances.png"
+        data-srcset="binder-proxy-instances.png, binder-proxy-instances.png 1.5x, binder-proxy-instances.png 2x"
+        data-sizes="auto"
+        alt="binder-proxy-instances.png"
+        title="binder-proxy-instances.png" /></p>
+<p><em><font color="blue">注：android上通过Debug.dumpHprofData()接口dump下来的hprof文件需要用hprof-con工具手动转一下才能由MAT打开，这个工具位于你下载的android sdk目录，见${android-sdk}/platform-tools/hprof-conv</font></em></p>
+<p>展开所有的entry后，点击工具栏的&quot;导出&quot;按钮，再由shell命令排序好后，得到：</p>
+<table>
+<thead>
+<tr>
+<th>BinderProxy</th>
+<th>数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>android.bluetooth.IBluetoothHeadset</td>
+<td><strong>6583</strong></td>
+</tr>
+<tr>
+<td>android.bluetooth.IBluetoothHidDevice</td>
+<td><strong>6518</strong></td>
+</tr>
+<tr>
+<td>miui.process.IMiuiApplicationThread</td>
+<td><strong>6048</strong></td>
+</tr>
+</tbody>
+</table>
+<p>挑选一个interfaceDescriptor是蓝牙进程的IMiuiApplicationThread的BinderProxy的实例：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-sql" data-lang="sql"><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">android</span><span class="p">.</span><span class="n">os</span><span class="p">.</span><span class="n">BinderProxy</span> <span class="n">s</span> <span class="k">where</span> <span class="n">toString</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">descriptorV2</span><span class="p">.</span><span class="n">value</span><span class="p">)</span> <span class="o">=</span> <span class="s2">&#34;</span><span class="s2">com.android.bluetooth-u1002-p304-miui.process.IMiuiApplicationThread@c01e15e</span><span class="s2">&#34;</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>有泄漏，即它没有被虚拟机回收，那么必定就有&gt;=1的gc 跟节点还（直接或间接）持有这个被泄露的对象的引用，所以再借助MAT来分析有哪些gc根节点指向这个被泄露的对象：</p>
+<p><img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="path-to-gc-roots-of-leaked-binder-proxy.png"
+        data-srcset="path-to-gc-roots-of-leaked-binder-proxy.png, path-to-gc-roots-of-leaked-binder-proxy.png 1.5x, path-to-gc-roots-of-leaked-binder-proxy.png 2x"
+        data-sizes="auto"
+        alt="path-to-gc-roots-of-leaked-binder-proxy.png"
+        title="path-to-gc-roots-of-leaked-binder-proxy.png" />
+<img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="gc-roots-of-leaked-binder-proxy.png"
+        data-srcset="gc-roots-of-leaked-binder-proxy.png, gc-roots-of-leaked-binder-proxy.png 1.5x, gc-roots-of-leaked-binder-proxy.png 2x"
+        data-sizes="auto"
+        alt="gc-roots-of-leaked-binder-proxy.png"
+        title="gc-roots-of-leaked-binder-proxy.png" /></p>
+<p>可以看到这个BinderProxy是被mMiuiApplicationThreads这个SparseArray强引用着，mMiuiApplicationThreads又是被mMiuiApplicationThreadManager引用，它是mMiuiApplicationThreadManager定义在ProcessManagerService.java里mMiuiApplicationThreads这个SparseArray的size是 <strong>6143！</strong>。
+结合代码发现了每个进程的启动的时候会向system_server注册一个descriptor为IMiuiApplicationThread的BinderProxy对象，主要用于MIUI的长截屏功能而在进程挂掉的时候，却没有从移除掉，所以就发生泄漏，详细代码枯燥，此处略，这一块属于进程管理相关的，直接通知相关同学进行修复了。</p>
+<p>继续定位剩余两个泄漏项，流程跟定位IMiuiApplicationThread泄漏的是一样的：</p>
+<p>1、标定一个泄漏的BinderProxy</p>
+<p><img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="leaked-bluetooth-headset.png"
+        data-srcset="leaked-bluetooth-headset.png, leaked-bluetooth-headset.png 1.5x, leaked-bluetooth-headset.png 2x"
+        data-sizes="auto"
+        alt="leaked-bluetooth-headset.png"
+        title="leaked-bluetooth-headset.png" /></p>
+<p>2、查看它的gc roots</p>
+<p><img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="bluetooth-headset-gc-roots.png"
+        data-srcset="bluetooth-headset-gc-roots.png, bluetooth-headset-gc-roots.png 1.5x, bluetooth-headset-gc-roots.png 2x"
+        data-sizes="auto"
+        alt="bluetooth-headset-gc-roots.png"
+        title="bluetooth-headset-gc-roots.png" /></p>
+<p>可以看到它被ProcessRecord.connections这个ArraySet引用着，那么下面再看下这个ProcessRecord是表示的哪个进程：</p>
+<p><img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="process-record-connections-gc-roots.png"
+        data-srcset="process-record-connections-gc-roots.png, process-record-connections-gc-roots.png 1.5x, process-record-connections-gc-roots.png 2x"
+        data-sizes="auto"
+        alt="process-record-connections-gc-roots.png"
+        title="process-record-connections-gc-roots.png" /></p>
+<p>最后得到：
+<img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="abnormal-process-record.png"
+        data-srcset="abnormal-process-record.png, abnormal-process-record.png 1.5x, abnormal-process-record.png 2x"
+        data-sizes="auto"
+        alt="abnormal-process-record.png"
+        title="abnormal-process-record.png" /></p>
+<p><strong>原来是system_server进程的ProcessRecord的问题，注意看connections.mArray的大小，有7749个!</strong></p>
+<p>3、确认代码逻辑：</p>
+<ol>
+<li>翻看下对ProcessRecord.connections进行增删的地方，只有binderService和unbindService</li>
+<li>到这里我们就可以判定肯定是system_server某个地方有重复绑定IBluetoothHeadset这个代表的service了，去package/apps/bluetooth目录下确认这个类是HeadsetService.java了，最终定位到BluetoothManagerService.java类里确实存在重复bind的情况，具体代码略，另外还确认到BluetoothHidDevice.java逻辑也存在问题，导致压力测试中systemui和com.xiaomi.bluetooth会出现重复bind的情况，已经跟蓝牙同事沟通，由他们进行修复并提交给aosp。</li>
+</ol>
+<h2 id="global-reference-overflow">继续调查global reference overflow问题</h2>
+<p>在上面的问题都修复后，9.0上依然有global reference overflow问题，继续测试后确认是桌面频繁调用壁纸接口导致，根本原因是RemoteCallbackList.register方法实现存在问题下面这段代码可以很容易的制造出这个问题：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java"><span class="kt">void</span> <span class="nf">testGetCurrentWallpaper</span><span class="o">(</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">WallpaperManager</span> <span class="n">manager</span> <span class="o">=</span> <span class="n">WallpaperManager</span><span class="o">.</span><span class="na">getInstance</span><span class="o">(</span><span class="k">this</span><span class="o">)</span><span class="o">;</span>
+    <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="n">0</span><span class="o">;</span>
+    <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">count</span><span class="o">+</span><span class="o">+</span><span class="o">;</span>
+        <span class="n">BitmapDrawable</span> <span class="n">drawable</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+        <span class="k">if</span> <span class="o">(</span><span class="o">(</span><span class="n">drawable</span> <span class="o">=</span> <span class="o">(</span><span class="n">BitmapDrawable</span><span class="o">)</span> <span class="n">manager</span><span class="o">.</span><span class="na">getDrawable</span><span class="o">(</span><span class="o">)</span><span class="o">)</span> <span class="o">=</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">Log</span><span class="o">.</span><span class="na">d</span><span class="o">(</span><span class="s">&#34;WWW&#34;</span><span class="o">,</span> <span class="s">&#34;failed to get wallpaper: seq=&#34;</span> <span class="o">+</span> <span class="n">count</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">Log</span><span class="o">.</span><span class="na">d</span><span class="o">(</span><span class="s">&#34;WWW&#34;</span><span class="o">,</span> <span class="s">&#34;got wallpaper: seq=&#34;</span> <span class="o">+</span> <span class="n">count</span><span class="o">)</span><span class="o">;</span>
+            <span class="c1">// deprecate cahce
+</span><span class="c1"></span>            <span class="n">drawable</span><span class="o">.</span><span class="na">getBitmap</span><span class="o">(</span><span class="o">)</span><span class="o">.</span><span class="na">recycle</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>提交了修复patch给aosp，<em>这类小概率问题google的研发一般处理的都不会太积极</em></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-java" data-lang="java">
+    <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">register</span><span class="o">(</span><span class="n">E</span> <span class="n">callback</span><span class="o">,</span> <span class="n">Object</span> <span class="n">cookie</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">synchronized</span> <span class="o">(</span><span class="n">mCallbacks</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">IBinder</span> <span class="n">binder</span> <span class="o">=</span> <span class="n">callback</span><span class="o">.</span><span class="na">asBinder</span><span class="o">(</span><span class="o">)</span><span class="o">;</span>
+            <span class="k">try</span> <span class="o">{</span>
+                <span class="n">Callback</span> <span class="n">cb</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Callback</span><span class="o">(</span><span class="n">callback</span><span class="o">,</span> <span class="n">cookie</span><span class="o">)</span><span class="o">;</span>
+                <span class="n">binder</span><span class="o">.</span><span class="na">linkToDeath</span><span class="o">(</span><span class="n">cb</span><span class="o">,</span> <span class="n">0</span><span class="o">)</span><span class="o">;</span>
+                <span class="n">mCallbacks</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="n">binder</span><span class="o">,</span> <span class="n">cb</span><span class="o">)</span><span class="o">;</span>
+                <span class="n">Callback</span> <span class="n">oldDeathRecipient</span> <span class="o">=</span> <span class="n">mCallbacks</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="n">binder</span><span class="o">,</span> <span class="n">cb</span><span class="o">)</span><span class="o">;</span>
+                <span class="k">if</span> <span class="o">(</span><span class="n">oldDeathRecipient</span> <span class="o">!</span><span class="o">=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">removeRegistration</span><span class="o">(</span><span class="n">oldDeathRecipient</span><span class="o">)</span><span class="o">;</span>
+                    <span class="k">try</span> <span class="o">{</span>
+                        <span class="c1">// Global reference would overflow if the same callback was
+</span><span class="c1"></span>                        <span class="c1">// registered repeatedly
+</span><span class="c1"></span>                        <span class="n">binder</span><span class="o">.</span><span class="na">unlinkToDeath</span><span class="o">(</span><span class="n">oldDeathRecipient</span><span class="o">,</span> <span class="n">0</span><span class="o">)</span><span class="o">;</span>
+                    <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">NoSuchElementException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                        <span class="c1">// Should not happen
+</span><span class="c1"></span>                        <span class="n">Slog</span><span class="o">.</span><span class="na">d</span><span class="o">(</span><span class="n">TAG</span><span class="o">,</span> <span class="s">&#34;Failed to unregister &#34;</span> <span class="o">+</span> <span class="n">oldDeathRecipient</span><span class="o">)</span><span class="o">;</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+                <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
+            <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">RemoteException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><h2 id="heading-3">小结：</h2>
+<p>内存泄露问题，平时一般都不会太关注，如果是app开发还好点，集成一下leakcannary这类工具，可以做到自动分析activity这类泄露，基本上能把潜在的泄露在外发前就解决掉；但system_server进程有点特殊，除非发生OTA，用户手动重启手机这种情况，它是一直在后台运行的，哪怕有一点泄露，也经不住几周或几个月的累积，积累到一定程度了，就是系统卡顿，app频繁被杀，最终异常重启，影响用户口碑。</p>
+</div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2018-12-25</span>
+            </div></div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span><a href="javascript:void(0);" title="分享到 Twitter" data-sharer="twitter" data-url="https://example.com/binder-proxy-leak/" data-title="system_server BinderProxy相关泄露问题记录" data-hashtags="binder,mat,hprof"><i class="fab fa-twitter fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Facebook" data-sharer="facebook" data-url="https://example.com/binder-proxy-leak/" data-hashtag="binder"><i class="fab fa-facebook-square fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Hacker News" data-sharer="hackernews" data-url="https://example.com/binder-proxy-leak/" data-title="system_server BinderProxy相关泄露问题记录"><i class="fab fa-hacker-news fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Line" data-sharer="line" data-url="https://example.com/binder-proxy-leak/" data-title="system_server BinderProxy相关泄露问题记录"><i data-svg-src="https://cdn.jsdelivr.net/npm/simple-icons@7.3.0/icons/line.svg" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 微博" data-sharer="weibo" data-url="https://example.com/binder-proxy-leak/" data-title="system_server BinderProxy相关泄露问题记录"><i class="fab fa-weibo fa-fw" aria-hidden="true"></i></a></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw" aria-hidden="true"></i>&nbsp;<a href="/tags/binder/">binder</a>,&nbsp;<a href="/tags/mat/">mat</a>,&nbsp;<a href="/tags/hprof/">hprof</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav"><a href="/pkms-permission/" class="prev" rel="prev" title="Android PKMS 权限管理介绍"><i class="fas fa-angle-left fa-fw" aria-hidden="true"></i>Android PKMS 权限管理介绍</a>
+            <a href="/art-jni-critical-deadlock/" class="next" rel="next" title="art gc相关死锁黑屏问题总结">art gc相关死锁黑屏问题总结<i class="fas fa-angle-right fa-fw" aria-hidden="true"></i></a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line" itemscope itemtype="http://schema.org/CreativeWork"><i class="far fa-copyright fa-fw" aria-hidden="true"></i><span itemprop="copyrightYear">2017 - 2024</span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw" aria-hidden="true"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw" aria-hidden="true"></i>
+            </a>
+        </div><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/autocomplete.js@0.38.1/dist/autocomplete.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/algoliasearch@4.13.1/dist/algoliasearch-lite.umd.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sharer.js@0.5.1/sharer.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":50},"comment":{},"search":{"algoliaAppID":"PASDMWALPK","algoliaIndex":"index.zh-cn","algoliaSearchKey":"b42948e51daaa93df92381c8e2ac0f93","highlightTag":"em","maxResultLength":10,"noResultsFound":"没有找到结果","snippetLength":50,"type":"algolia"}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>

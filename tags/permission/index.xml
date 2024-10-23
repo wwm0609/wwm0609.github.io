@@ -1,0 +1,16 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>permission - 标签 - WWM的记事本</title>
+        <link>https://example.com/tags/permission/</link>
+        <description>permission - 标签 - WWM的记事本</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>wwm0609@gmail.com (wwm)</managingEditor>
+            <webMaster>wwm0609@gmail.com (wwm)</webMaster><copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright><lastBuildDate>Wed, 07 Mar 2018 00:00:00 &#43;0000</lastBuildDate><atom:link href="https://example.com/tags/permission/" rel="self" type="application/rss+xml" /><item>
+    <title>Android PKMS 权限管理介绍</title>
+    <link>https://example.com/pkms-permission/</link>
+    <pubDate>Wed, 07 Mar 2018 00:00:00 &#43;0000</pubDate>
+    <author>wwm</author>
+    <guid>https://example.com/pkms-permission/</guid>
+    <description><![CDATA[本文介绍Android PackageManagerService对应用权限的管理 应用安装时PKMS对权限的处理 先回顾下app安装流程： 1 2 3]]></description>
+</item>
+</channel>
+</rss>

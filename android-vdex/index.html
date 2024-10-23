@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noodp" />
+        <title>Android 8.0 VDEX机制简介 - WWM的记事本</title><meta name="Description" content="This is my cool site"><meta property="og:title" content="Android 8.0 VDEX机制简介" />
+<meta property="og:description" content="背景 Android 8.0在odex的基础上又引入了vdex机制，目的是为了降低dex2oat时间。 因为当系统ota后，用户自己安装的应用是不会发生任何变" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://example.com/android-vdex/" />
+<meta property="og:image" content="https://example.com/snowforest.png"/>
+<meta property="article:published_time" content="2017-12-21T00:00:00+00:00" />
+<meta property="article:modified_time" content="2017-12-21T00:00:00+00:00" /><meta property="og:site_name" content="My cool site" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://example.com/snowforest.png"/>
+
+<meta name="twitter:title" content="Android 8.0 VDEX机制简介"/>
+<meta name="twitter:description" content="背景 Android 8.0在odex的基础上又引入了vdex机制，目的是为了降低dex2oat时间。 因为当系统ota后，用户自己安装的应用是不会发生任何变"/>
+<meta name="application-name" content="LoveIt">
+<meta name="apple-mobile-web-app-title" content="LoveIt"><meta name="theme-color" content="#ffffff"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="https://example.com/android-vdex/" /><link rel="next" href="https://example.com/instant-app/" /><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.1.1/css/all.min.css"></noscript><link rel="preload" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Android 8.0 VDEX机制简介",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/example.com\/android-vdex\/"
+        },"image": ["https:\/\/example.com\/images\/Apple-Devices-Preview.png"],"genre": "posts","keywords": "dex2oat, vdex","wordcount":  5635 ,
+        "url": "https:\/\/example.com\/android-vdex\/","datePublished": "2017-12-21T00:00:00+00:00","dateModified": "2017-12-21T00:00:00+00:00","license": "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.","publisher": {
+            "@type": "Organization",
+            "name": "xxxx","logo": "https:\/\/example.com\/images\/avatar.png"},"author": {
+                "@type": "Person",
+                "name": "wwm"
+            },"description": ""
+    }
+    </script></head>
+    <body data-header-desktop="fixed" data-header-mobile="auto"><script type="text/javascript">(window.localStorage && localStorage.getItem('theme') ? localStorage.getItem('theme') === 'dark' : ('auto' === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : 'auto' === 'dark')) && document.body.setAttribute('theme', 'dark');</script>
+
+        <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/posts/"> 所有文章 </a><a class="menu-item" href="/tags/"> 标签 </a><a class="menu-item" href="https://github.com/wwm0609" rel="noopener noreffer" target="_blank"> Github </a><span class="menu-item delimiter"></span><span class="menu-item search" id="search-desktop">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-desktop">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-desktop" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-desktop" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-desktop">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </span><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                    <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+                </a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="WWM的记事本"><span class="header-title-pre"><i class='fa-solid fa-house' aria-hidden='true'></i></span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><div class="search-wrapper">
+                    <div class="search mobile" id="search-mobile">
+                        <input type="text" placeholder="搜索文章标题或内容..." id="search-input-mobile">
+                        <a href="javascript:void(0);" class="search-button search-toggle" id="search-toggle-mobile" title="搜索">
+                            <i class="fas fa-search fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <a href="javascript:void(0);" class="search-button search-clear" id="search-clear-mobile" title="清空">
+                            <i class="fas fa-times-circle fa-fw" aria-hidden="true"></i>
+                        </a>
+                        <span class="search-button search-loading" id="search-loading-mobile">
+                            <i class="fas fa-spinner fa-fw fa-spin" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                    <a href="javascript:void(0);" class="search-cancel" id="search-cancel-mobile">
+                        取消
+                    </a>
+                </div><a class="menu-item" href="/posts/" title="">所有文章</a><a class="menu-item" href="/tags/" title="">标签</a><a class="menu-item" href="https://github.com/wwm0609" title="" rel="noopener noreffer" target="_blank">Github</a><a href="javascript:void(0);" class="menu-item theme-switch" title="切换主题">
+                <i class="fas fa-adjust fa-fw" aria-hidden="true"></i>
+            </a></div>
+    </div>
+</header><div class="search-dropdown desktop">
+        <div id="search-dropdown-desktop"></div>
+    </div>
+    <div class="search-dropdown mobile">
+        <div id="search-dropdown-mobile"></div>
+    </div><main class="main">
+                <div class="container"><div class="toc" id="toc-auto">
+            <h2 class="toc-title">目录</h2>
+            <div class="toc-content" id="toc-content-auto"></div>
+        </div><article class="page single"><h1 class="single-title animate__animated animate__flipInX">Android 8.0 VDEX机制简介</h1><div class="post-meta">
+            <div class="post-meta-line"><span class="post-author"><a href="/" title="Author" rel="author" class="author"><i class="fas fa-user-circle fa-fw" aria-hidden="true"></i>wwm</a></span></div>
+            <div class="post-meta-line"><i class="far fa-calendar-alt fa-fw" aria-hidden="true"></i>&nbsp;<time datetime="2017-12-21">2017-12-21</time>&nbsp;<i class="fas fa-pencil-alt fa-fw" aria-hidden="true"></i>&nbsp;约 5635 字&nbsp;
+                <i class="far fa-clock fa-fw" aria-hidden="true"></i>&nbsp;预计阅读 12 分钟&nbsp;</div>
+        </div><div class="details toc" id="toc-static"  data-kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right" aria-hidden="true"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#heading">背景</a></li>
+        <li><a href="#vdexcommit">首个VDEX实现相关commit：</a></li>
+        <li><a href="#heading-1">原理</a></li>
+        <li><a href="#heading-2">具体实现：</a>
+          <ul>
+            <li><a href="#checkheaderdexdex">CheckHeader()：校验dex头信息(见上面dex文件结构图左半部分)</a></li>
+            <li><a href="#checkmap">CheckMap()：</a></li>
+            <li><a href="#checkintrasection">CheckIntraSection()：</a></li>
+            <li><a href="#checkintersection">CheckInterSection()：</a></li>
+          </ul>
+        </li>
+        <li><a href="#a-namewrite-vdexfont-color333vdexfonta">vdex的生成过程</a>
+          <ul>
+            <li><a href="#vdex">vdex文件结构</a></li>
+            <li><a href="#heading-3">生成过程</a></li>
+          </ul>
+        </li>
+        <li><a href="#appdex">主流app的dex文件校验耗时:</a></li>
+        <li><a href="#vdex-1">新版VDEX结构</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h3 id="heading">背景</h3>
+<p>Android 8.0在odex的基础上又引入了vdex机制，目的是为了降低dex2oat时间。
+因为当系统ota后，用户自己安装的应用是不会发生任何变化的，但framework代码已经发生了变化，
+所以就需要重新对这些应用也做dex2oat，所以如果有vdex的话，就可以省去重新校验apk里dex文件合法性的过程，节省一部分时间，所以本文分析下vdex的实现机制。</p>
+<table>
+<thead>
+<tr>
+<th>文件格式</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>.dex</td>
+<td>存储java字节码</td>
+</tr>
+<tr>
+<td>.odex/.oat</td>
+<td>optimized dex，ELF格式</td>
+</tr>
+<tr>
+<td>.vdex</td>
+<td>verified dex，包含 raw dex +（quicken info)</td>
+</tr>
+<tr>
+<td>.art</td>
+<td>image文件，存储热点方法string, method, types等</td>
+</tr>
+</tbody>
+</table>
+<!-- more -->
+<h3 id="vdexcommit">首个VDEX实现相关commit：</h3>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">commit 7b49e6cade09bc65b3b5f22d45fc9d0a7184e4f2
+Author: David Brazdil &lt;dbrazdil@google.com&gt;
+Date:   Thu Sep 1 11:06:18 2016 +0100
+</code></pre></td></tr></table>
+</div>
+</div><p>主要目的：降低dex2oat执行耗时
+1、当系统OTA后，对于安装在data分区下的app，因为它们的apk都没有任何变化，那么在首次开机时，对于这部分app如果有vdex文件存在的话，执行dexopt时就可以直接跳过verify流程，进入compile dex的流程，从而加速首次开机速度；
+2、当app的jit profile信息变化时，background dexopt会在后台重新做dex2oat，因为有了vdex，这个时候也可以直接跳过</p>
+<h3 id="heading-1">原理</h3>
+<p>应用首次安装时，抽取出其中的dex文件，校验成功后，存储到一个独立的文件中，后面由于jit profile改变，或OTA等原因，而重新进行dexopt时，可以跳过dex文件校验流程</p>
+<h3 id="heading-2">具体实现：</h3>
+<p>dex2oat关键路径： main() → setup() → compileApp()</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// art/dex2oat/dexoat.cc
+</span><span class="c1"></span><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span><span class="o">*</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">art</span><span class="o">:</span><span class="o">:</span><span class="n">Dex2oat</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+ 
+<span class="k">static</span> <span class="n">dex2oat</span><span class="o">:</span><span class="o">:</span><span class="n">ReturnCode</span> <span class="n">Dex2oat</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span><span class="o">*</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">dex2oat</span><span class="o">-</span><span class="o">&gt;</span><span class="n">ParseArgs</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">)</span><span class="p">;</span>
+  <span class="n">dex2oat</span><span class="o">:</span><span class="o">:</span><span class="n">ReturnCode</span> <span class="n">setup_code</span> <span class="o">=</span> <span class="n">dex2oat</span><span class="o">-</span><span class="o">&gt;</span><span class="n">Setup</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <span class="n">dex2oat</span><span class="o">:</span><span class="o">:</span><span class="n">ReturnCode</span> <span class="n">result</span> <span class="o">=</span> <span class="n">CompileApp</span><span class="p">(</span><span class="o">*</span><span class="n">dex2oat</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+ 
+<span class="n">dex2oat</span><span class="o">:</span><span class="o">:</span><span class="n">ReturnCode</span> <span class="n">Setup</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// DoDexLayoutOptimizations()内部会校验dex文件，所以当vdex存在或者DoDexLayoutOptimizations()也ok时
+</span><span class="c1"></span>    <span class="c1">// 后面就不用再次去检查dex文件的合法性了
+</span><span class="c1"></span>    <span class="k">const</span> <span class="kt">bool</span> <span class="n">verify</span> <span class="o">=</span> <span class="o">!</span><span class="n">DoDexLayoutOptimizations</span><span class="p">(</span><span class="p">)</span> <span class="o">&amp;</span><span class="o">&amp;</span> <span class="p">(</span><span class="n">input_vdex_file_</span> <span class="o">=</span><span class="o">=</span> <span class="k">nullptr</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">oat_writers_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="o">&gt;</span><span class="n">WriteAndOpenDexFiles</span><span class="p">(</span>
+            <span class="n">kIsVdexEnabled</span> <span class="o">?</span> <span class="n">vdex_files_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span> <span class="o">:</span> <span class="n">oat_files_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+            <span class="n">rodata_</span><span class="p">.</span><span class="n">back</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+            <span class="n">instruction_set_</span><span class="p">,</span>
+            <span class="n">instruction_set_features_</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+            <span class="n">key_value_store_</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span>
+            <span class="n">verify</span><span class="p">,</span>
+            <span class="n">update_input_vdex_</span><span class="p">,</span>
+            <span class="o">&amp;</span><span class="n">opened_dex_files_map</span><span class="p">,</span>
+            <span class="o">&amp;</span><span class="n">opened_dex_files</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">return</span> <span class="n">dex2oat</span><span class="o">:</span><span class="o">:</span><span class="n">ReturnCode</span><span class="o">:</span><span class="o">:</span><span class="n">kOther</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>由于VDEX优化的是verfiy流程，即校验dex文件的合法性，所以下面主要看一下 WriteAndOpenDexFiles() 函数的实现</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// art/compiler/oat_writer.cc
+</span><span class="c1"></span><span class="kt">bool</span> <span class="n">OatWriter</span><span class="o">:</span><span class="o">:</span><span class="n">WriteAndOpenDexFiles</span><span class="p">(</span>
+    <span class="n">File</span><span class="o">*</span> <span class="n">vdex_file</span><span class="p">,</span>
+    <span class="n">OutputStream</span><span class="o">*</span> <span class="n">oat_rodata</span><span class="p">,</span>
+    <span class="n">InstructionSet</span> <span class="n">instruction_set</span><span class="p">,</span>
+    <span class="k">const</span> <span class="n">InstructionSetFeatures</span><span class="o">*</span> <span class="n">instruction_set_features</span><span class="p">,</span>
+    <span class="n">SafeMap</span><span class="o">&lt;</span><span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span><span class="p">,</span> <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">string</span><span class="o">&gt;</span><span class="o">*</span> <span class="n">key_value_store</span><span class="p">,</span>
+    <span class="kt">bool</span> <span class="n">verify</span><span class="p">,</span>
+    <span class="kt">bool</span> <span class="n">update_input_vdex</span><span class="p">,</span>
+    <span class="cm">/*out*/</span> <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">MemMap</span><span class="o">&gt;</span><span class="o">*</span> <span class="n">opened_dex_files_map</span><span class="p">,</span>
+    <span class="cm">/*out*/</span> <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">DexFile</span><span class="o">&gt;</span><span class="o">&gt;</span><span class="o">*</span> <span class="n">opened_dex_files</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">.</span><span class="p">.</span><span class="p">.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">kIsVdexEnabled</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">:</span><span class="o">:</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">BufferedOutputStream</span><span class="o">&gt;</span> <span class="n">vdex_out</span><span class="p">(</span>
+        <span class="n">MakeUnique</span><span class="o">&lt;</span><span class="n">BufferedOutputStream</span><span class="o">&gt;</span><span class="p">(</span><span class="n">MakeUnique</span><span class="o">&lt;</span><span class="n">FileOutputStream</span><span class="o">&gt;</span><span class="p">(</span><span class="n">vdex_file</span><span class="p">)</span><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    <span class="c1">// 启用了vdex，把dex文件写到vdex文件里，并map到内存里，用于后续compile流程
+</span><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">WriteDexFiles</span><span class="p">(</span><span class="n">vdex_out</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="n">vdex_file</span><span class="p">,</span> <span class="n">update_input_vdex</span><span class="p">)</span> <span class="o">|</span><span class="o">|</span>
+        <span class="o">!</span><span class="n">OpenDexFiles</span><span class="p">(</span><span class="n">vdex_file</span><span class="p">,</span> <span class="n">verify</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dex_files_map</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dex_files</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// 没有启用vdex，就把dex文件写到oat(odex)文件里
+</span><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">WriteDexFiles</span><span class="p">(</span><span class="n">oat_rodata</span><span class="p">,</span> <span class="n">vdex_file</span><span class="p">,</span> <span class="n">update_input_vdex</span><span class="p">)</span> <span class="o">|</span><span class="o">|</span>
+        <span class="o">!</span><span class="n">OpenDexFiles</span><span class="p">(</span><span class="n">vdex_file</span><span class="p">,</span> <span class="n">verify</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dex_files_map</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dex_files</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">.</span><span class="p">.</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>第1步：打开apk文件，把其中的classes[N].dex文件合并写入到vdex文件
+WriteDexFiles流程：此处略过，见后文<a href="#write_vdex">vdex的生成过程</a></p>
+<p>第2步：map vdex文件到内存，用于后续对其中的dex文件做优化，并写入到odex文件。
+如果vdex是刚刚创建的，则还需要vdex里的dex文件部分是否合法，否则便可跳过校验流程，直接进行后续的代码优化流程
+OpenDexFiles流程：OatWriter::OpenDexFiles -&gt; DexFile::Open -&gt; DexFile::OpenCommon -&gt; DexFileVerifier::Verify</p>
+<p>DexFileVerifier::Verify的主流程：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// art/runtime/dex_file_verifier.cc
+</span><span class="c1"></span><span class="kt">bool</span> <span class="n">DexFileVerifier</span><span class="o">:</span><span class="o">:</span><span class="n">Verify</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Check the header.
+</span><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">CheckHeader</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c1">// Check the map section.
+</span><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">CheckMap</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c1">// Check structure within remaining sections.
+</span><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">CheckIntraSection</span><span class="p">(</span><span class="p">)</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c1">// Check references from one section to another.
+</span><span class="c1"></span>  <span class="k">return</span> <span class="nf">CheckInterSection</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>结合一下dex文件的格式：
+<img
+        class="lazyload"
+        src="/svg/loading.min.svg"
+        data-src="dex_format.png"
+        data-srcset="dex_format.png, dex_format.png 1.5x, dex_format.png 2x"
+        data-sizes="auto"
+        alt="dex_format.png"
+        title="dex_format.png" />
+<a href="https://source.android.com/devices/tech/dalvik/dex-format?hl=zh-cn" target="_blank" rel="noopener noreffer ">字段含义对照表</a>：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>格式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>header</td>
+<td>header_item</td>
+<td>标头</td>
+</tr>
+<tr>
+<td>string_ids</td>
+<td>string_id_item[]</td>
+<td>字符串标识符列表。这些是此文件使用的所有字符串的标识符，用于内部命名（例如类型描述符）或用作代码引用的常量对象。此列表必须使用 UTF-16 代码点值按字符串内容进行排序（不采用语言区域敏感方式），且不得包含任何重复条目。</td>
+</tr>
+<tr>
+<td>type_ids</td>
+<td>type_id_item[]</td>
+<td>类型标识符列表。这些是此文件引用的所有类型（类、数组或原始类型）的标识符（无论文件中是否已定义）。此列表必须按 <code>string_id</code> 索引进行排序，且不得包含任何重复条目。</td>
+</tr>
+<tr>
+<td>proto_ids</td>
+<td>proto_id_item[]</td>
+<td>方法原型标识符列表。这些是此文件引用的所有原型的标识符。此列表必须按返回类型（按 <code>type_id</code> 索引排序）主要顺序进行排序，然后按参数列表（按 <code>type_id</code> 索引排序的各个参数，采用字典排序方法）进行排序。该列表不得包含任何重复条目。</td>
+</tr>
+<tr>
+<td>field_ids</td>
+<td>field_id_item[]</td>
+<td>字段标识符列表。这些是此文件引用的所有字段的标识符（无论文件中是否已定义）。此列表必须进行排序，其中定义类型（按 <code>type_id</code> 索引排序）是主要顺序，字段名称（按 <code>string_id</code> 索引排序）是中间顺序，而类型（按 <code>type_id</code> 索引排序）是次要顺序。该列表不得包含任何重复条目。</td>
+</tr>
+<tr>
+<td>method_ids</td>
+<td>method_id_item[]</td>
+<td>方法标识符列表。这些是此文件引用的所有方法的标识符（无论文件中是否已定义）。此列表必须进行排序，其中定义类型（按 <code>type_id</code> 索引排序）是主要顺序，方法名称（按 <code>string_id</code> 索引排序）是中间顺序，而方法原型（按 <code>proto_id</code> 索引排序）是次要顺序。该列表不得包含任何重复条目。</td>
+</tr>
+<tr>
+<td>class_defs</td>
+<td>class_def_item[]</td>
+<td>类定义列表。这些类必须进行排序，以便所指定类的超类和已实现的接口比引用类更早出现在该列表中。此外，对于在该列表中多次出现的同名类，其定义是无效的。</td>
+</tr>
+<tr>
+<td>call_site_ids</td>
+<td>call_site_id_item[]</td>
+<td>调用站点标识符列表。这些是此文件引用的所有调用站点的标识符（无论文件中是否已定义）。此列表必须按 <code>call_site_off</code> 的升序进行排序。</td>
+</tr>
+<tr>
+<td>method_handles</td>
+<td>method_handle_item[]</td>
+<td>方法句柄列表。此文件引用的所有方法句柄的列表（无论文件中是否已定义）。此列表未进行排序，而且可能包含将在逻辑上对应于不同方法句柄实例的重复项。</td>
+</tr>
+<tr>
+<td>data</td>
+<td>ubyte[]</td>
+<td>数据区，包含上面所列表格的所有支持数据。不同的项有不同的对齐要求；如有必要，则在每个项之前插入填充字节，以实现所需的对齐效果。</td>
+</tr>
+<tr>
+<td>link_data</td>
+<td>ubyte[]</td>
+<td>静态链接文件中使用的数据。本文档尚未指定本区段中数据的格式。此区段在未链接文件中为空，而运行时实现可能会在适当的情况下使用这些数据。</td>
+</tr>
+</tbody>
+</table>
+<h4 id="checkheaderdexdex">CheckHeader()：校验dex头信息(见上面dex文件结构图左半部分)</h4>
+<p>校验实际文件大小与dex头文件里保存的file_size是否一致；
+计算dex文件的checksum，然后与dex头里保存的checksum对比，检查是否一致；
+比较dex文件的<a href="https://zh.wikipedia.org/wiki/%E5%AD%97%E8%8A%82%E5%BA%8F" target="_blank" rel="noopener noreffer ">字节序</a>(endian_tag)与当前机器的字节序是否一致，目前dex使用的都为小端序(little-endian);
+检测dex文件头里保存的header_size是否存在异常；</p>
+<p>检查link_off, link_size, map_off, map_size…..等字段的是否合法，例如string_id偏移是否超出了dex文件本身长度，string_id偏移是否正确的对齐(align)了，定义的类/方法数是否超过了65536个</p>
+<h4 id="checkmap">CheckMap()：</h4>
+<p>当dex文件被映射(mmap)到内存后，map区域(mmap起始地址+ map_offset)就可以被看做一个list（MapList），这个list的每一个item（MapItem）分别表示了header, stringId, typeId, methodId, fieldId, &hellip;code等不同类别
+MapList的结构如下：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="k">struct</span> <span class="nc">MapList</span> <span class="p">{</span>
+  <span class="kt">uint32_t</span> <span class="n">size_</span><span class="p">;</span> <span class="c1">// 数组list_实际的长度 
+</span><span class="c1"></span>  <span class="n">MapItem</span> <span class="n">list_</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="p">;</span>
+<span class="p">}</span><span class="p">;</span>
+<span class="k">struct</span> <span class="nc">MapItem</span> <span class="p">{</span>
+  <span class="c1">// item类型，e.g. kDexTypeStringIdItem, kDexTypeStringDataItem... 
+</span><span class="c1"></span>  <span class="c1">// 详细见 DexFile::MapItemType(位于art/runtime/dex_file.h)
+</span><span class="c1"></span>  <span class="kt">uint16_t</span> <span class="n">type_</span><span class="p">;</span>
+  <span class="kt">uint16_t</span> <span class="n">unused_</span><span class="p">;</span> <span class="c1">// 暂时仅用作4字节对齐用
+</span><span class="c1"></span>  <span class="kt">uint32_t</span> <span class="n">size_</span><span class="p">;</span>   <span class="c1">// 该类item的数量
+</span><span class="c1"></span>  <span class="c1">// mmap后，该类型的第一个item相对与dex文件起始地址的偏移(即处于dex文件的第$offset_个字节)
+</span><span class="c1"></span>  <span class="kt">uint32_t</span> <span class="n">offset_</span><span class="p">;</span>
+<span class="p">}</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><h4 id="checkintrasection">CheckIntraSection()：</h4>
+<p><em>intra翻译：同一事物内部各部分之间</em>
+checkPadding(): 前后两个不同类型的item之前的是否正确的对齐了，例如用于对齐的每个字节的值必须为0，两个mapitem的地址(MapItem.offset_)不能有相交(overlap)
+若MapItem.type_是header, string_id, typeId, proto_id, field_id, method_id, class_def, callSizeId, methodHandle, typeList, anotationSet等类型的话：</p>
+<ol>
+<li>检查其MapItem.offset_/MapItem.size_是否与dex头部存放的相应xxx_off_/xxx_size_（若存在）相等,</li>
+<li>根据MapItem.offset_和MapItem.size_，就能够遍历该类型mapItem指向的所有item，检查这些StringId/TypeId/ProtoId…里存放的offset是否合法(不超出系统可用内存大小，不超出dex文件末尾地址)</li>
+<li>若MapItem.type_是classData, codeData, stringData等 这几个类型的话：
+类似第2步，检查各mapItem本身的地址偏移是否合法，实际指向的item数组里各项的offset是否合法;
+对于classData类别，校验每项item对应的class下所有的静态/非静态字段与方法的合法:</li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// Iterate and decode class_data_item
+</span><span class="c1"></span><span class="k">class</span> <span class="nc">ClassDataItemIterator</span> <span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+    <span class="c1">// 为了压缩dex文件大小，这部分数据是用的leb12b编码，所以在运行时遍历静态/非静态属性和方法的时候，再依次decode出来
+</span><span class="c1"></span>    <span class="k">struct</span> <span class="nc">ClassDataHeader</span> <span class="p">{</span>
+        <span class="kt">uint32_t</span> <span class="n">static_fields_size_</span><span class="p">;</span>  <span class="c1">// the number of static fields
+</span><span class="c1"></span>        <span class="kt">uint32_t</span> <span class="n">instance_fields_size_</span><span class="p">;</span>  <span class="c1">// the number of instance fields
+</span><span class="c1"></span>        <span class="kt">uint32_t</span> <span class="n">direct_methods_size_</span><span class="p">;</span>  <span class="c1">// the number of direct methods，如私有方法，静态方法，构造函数
+</span><span class="c1"></span>        <span class="kt">uint32_t</span> <span class="n">virtual_methods_size_</span><span class="p">;</span>  <span class="c1">// the number of virtual methods
+</span><span class="c1"></span>    <span class="p">}</span> <span class="n">header_</span><span class="p">;</span>
+ 
+    <span class="c1">// A decoded version of the field of a class_data_item
+</span><span class="c1"></span>    <span class="k">struct</span> <span class="nc">ClassDataField</span> <span class="p">{</span>
+        <span class="kt">uint32_t</span> <span class="n">field_idx_delta_</span><span class="p">;</span>  <span class="c1">// 表示在filed_ids链表中的索引
+</span><span class="c1"></span>        <span class="kt">uint32_t</span> <span class="n">access_flags_</span><span class="p">;</span>  <span class="c1">// access flags for the field
+</span><span class="c1"></span>    <span class="p">}</span><span class="p">;</span>
+    <span class="n">ClassDataField</span> <span class="n">field_</span><span class="p">;</span>
+ 
+    <span class="c1">// A decoded version of the method of a class_data_item
+</span><span class="c1"></span>    <span class="k">struct</span> <span class="nc">ClassDataMethod</span> <span class="p">{</span>
+        <span class="kt">uint32_t</span> <span class="n">method_idx_delta_</span><span class="p">;</span>  <span class="c1">// 表示在method_ids链表中的索引
+</span><span class="c1"></span>        <span class="kt">uint32_t</span> <span class="n">access_flags_</span><span class="p">;</span>
+        <span class="kt">uint32_t</span> <span class="n">code_off_</span><span class="p">;</span>
+    <span class="p">}</span><span class="p">;</span>
+    <span class="n">ClassDataMethod</span> <span class="n">method_</span><span class="p">;</span>
+<span class="p">}</span><span class="p">;</span>
+<span class="k">struct</span> <span class="nc">FieldId</span> <span class="p">{</span>
+    <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">TypeIndex</span> <span class="n">class_idx_</span><span class="p">;</span>   <span class="c1">// index into type_ids_ array for defining class
+</span><span class="c1"></span>    <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">TypeIndex</span> <span class="n">type_idx_</span><span class="p">;</span>    <span class="c1">// index into type_ids_ array for field type
+</span><span class="c1"></span>    <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">StringIndex</span> <span class="n">name_idx_</span><span class="p">;</span>  <span class="c1">// index into string_ids_ array for field name
+</span><span class="c1"></span><span class="p">}</span><span class="p">;</span>
+<span class="k">struct</span> <span class="nc">MethodId</span> <span class="p">{</span>
+    <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">TypeIndex</span> <span class="n">class_idx_</span><span class="p">;</span>   <span class="c1">// index into type_ids_ array for defining class
+</span><span class="c1"></span>    <span class="kt">uint16_t</span> <span class="n">proto_idx_</span><span class="p">;</span>         <span class="c1">// index into proto_ids_ array for method prototype
+</span><span class="c1"></span>    <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">StringIndex</span> <span class="n">name_idx_</span><span class="p">;</span>  <span class="c1">// index into string_ids_ array for method name
+</span><span class="c1"></span><span class="p">}</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><pre><code>校验该类所有filed/method的**meber index**是有序，是否有越界；
+根据filed/method的**member index**从filed_ids/method_ids链表找到对应的项，再利用filedId/methodId里的class_idx遍历class_def 链表，找出对应的该field/method所属class_def项，​并校验该类下所有field/method的均含有一致的class_idx；
+校验该类下的所有field/method的访问标志符的合法性: private/protected/public 仅能有其一，是否定义了未知的flag, 一个方法不能 同时声明virtual和direct, 虚方法不能同时声明有final/private/static/...；
+校验name_idx是否合法：能否根据其解析出方法的字符串；
+检查method的code_off_合法性：native/abstract 方法不能有code，所以其code_off_须为0；相反的，其他类型的方法则其code_off_不能为0，等等；
+...
+</code></pre>
+<ol start="4">
+<li>codeItem: TL;DR</li>
+<li>stringData: TL;DR
+&hellip;</li>
+</ol>
+<h4 id="checkintersection">CheckInterSection()：</h4>
+<pre><code>*inter:不同事物之间*
+</code></pre>
+<p>在checkIntraSection()函数执行过程中，每校验完一个位于data section的item时，如stringData, classData, codeItem&hellip;等时，就会把他们的地址偏移与类型给记录到一个hash表offset_to_type_map_中</p>
+<ol>
+<li>遍历string_id区所有项：</li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="k">struct</span> <span class="nc">StringId</span> <span class="p">{</span>
+  <span class="kt">uint32_t</span> <span class="n">string_data_off_</span><span class="p">;</span>  <span class="c1">// offset in bytes from the base address
+</span><span class="c1"></span><span class="p">}</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><pre><code>检查string_id里存储的string_data_off_是否合法，即能否在offset_to_type_map_查找到匹配的记录，所有的string_id项已按照其指向的字符串字典序排好序了
+</code></pre>
+<ol start="2">
+<li>校验type_id区所有项：</li>
+</ol>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="k">struct</span> <span class="nc">TypeId</span> <span class="p">{</span>
+  <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">StringIndex</span> <span class="n">descriptor_idx_</span><span class="p">;</span>  <span class="c1">// index into string_ids
+</span><span class="c1"></span><span class="p">}</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>检查type_id项里存储的descriptor_idx_是否合法，即能否在根据该idx解析成该type的字符串表示，并检查所有项是否已按照descriptor_idx_从小到大排序
+3) 校验proto_id区所有项：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="k">struct</span> <span class="nc">ProtoId</span> <span class="p">{</span>
+  <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">StringIndex</span> <span class="n">shorty_idx_</span><span class="p">;</span>     <span class="c1">// index into string_ids array for shorty descriptor
+</span><span class="c1"></span>  <span class="n">dex</span><span class="o">:</span><span class="o">:</span><span class="n">TypeIndex</span> <span class="n">return_type_idx_</span><span class="p">;</span>  <span class="c1">// index into type_ids array for return type
+</span><span class="c1"></span>  <span class="kt">uint16_t</span> <span class="n">pad_</span><span class="p">;</span>                    <span class="c1">// padding = 0
+</span><span class="c1"></span>  <span class="kt">uint32_t</span> <span class="n">parameters_off_</span><span class="p">;</span>         <span class="c1">// file offset to type_list for parameter types
+</span><span class="c1"></span><span class="p">}</span><span class="p">;</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>检查能否根据 parameters_off_ 在offset_to_type_map_里查到相应记录, 并检查所有的参数是否合法
+能否根据short_idx_正确decode出字符串表示
+检查return_type_idx_是否越界(65535)，能否由其最终正确解析出它的字符串表示形式
+检查所有proto_id项是否已根据return_type_idx_, 参数的type_id排序</p>
+<ol start="4">
+<li>校验所有的filed_id：TL; DR</li>
+<li>校验所有的method_id：TL; DR
+&hellip;</li>
+</ol>
+<h3 id="a-namewrite-vdexfont-color333vdexfonta"><a name="write_vdex"><font color="#333">vdex的生成过程</font></a></h3>
+<h4 id="vdex">vdex文件结构</h4>
+<p>| magic: 4字节 | version: 4字节 | dex[0] | dex[1] | &hellip;  | dex[N] |
+定义见：art/runtime/vdex_file.h</p>
+<h4 id="heading-3">生成过程</h4>
+<p>OatWriter:WriteAndOpenDexFiles()
+-&gt; WriteDexFiles() -&gt; WriteDexFile() -&gt; ZipEntry.extraTo(vdex_file)
+-&gt; WriteVdexHeader()</p>
+<p>这一步主流程很简单，就是把apk里的dex文件抽取抽取然后写入到vdex文件里，最后写入vdex版本号和校验和，比较麻烦的是写入文件的时候要做<a href="https://en.wikipedia.org/wiki/Data_structure_alignment" target="_blank" rel="noopener noreffer ">4字节对齐</a>，所以每次写入一个dex文件都要先设置好文件偏移，这样后面map这个vdex里时候能够提高效率。</p>
+<h3 id="appdex">主流app的dex文件校验耗时:</h3>
+<table>
+<thead>
+<tr>
+<th>App名称</th>
+<th>版本</th>
+<th>dex文件总大小/包体积</th>
+<th>verify耗时</th>
+<th>dex2oat总耗时(4线程)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>微信</td>
+<td>6.5.23</td>
+<td>41.8Mb / 54Mb</td>
+<td>2.681秒</td>
+<td>13.376秒</td>
+</tr>
+<tr>
+<td>支付宝</td>
+<td>10.1.8.112305</td>
+<td>40.8Mb / 58Mb</td>
+<td>2.768秒</td>
+<td>13.764秒</td>
+</tr>
+<tr>
+<td>淘宝</td>
+<td>7.2.3</td>
+<td>11.6Mb / 76Mb</td>
+<td>692毫秒</td>
+<td>3.641秒</td>
+</tr>
+<tr>
+<td>今日头条极速版</td>
+<td>6.1.9</td>
+<td>4.8Mb / 2.9Mb</td>
+<td>242毫秒</td>
+<td>1.899s</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vdex-1">新版VDEX结构</h3>
+<p>到Android 9.0上，vdex结构变的丰富了：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-c++" data-lang="c++"><span class="c1">// VDEX files contain extracted DEX files. The VdexFile class maps the file to
+</span><span class="c1"></span><span class="c1">// memory and provides tools for accessing its individual sections.
+</span><span class="c1"></span><span class="c1">//
+</span><span class="c1"></span><span class="c1">// File format:
+</span><span class="c1"></span><span class="c1">//   VdexFile::VerifierDepsHeader    fixed-length header
+</span><span class="c1"></span><span class="c1">//      Dex file checksums
+</span><span class="c1"></span><span class="c1">//
+</span><span class="c1"></span><span class="c1">//   Optionally:
+</span><span class="c1"></span><span class="c1">//      VdexFile::DexSectionHeader   fixed-length header
+</span><span class="c1"></span><span class="c1">//
+</span><span class="c1"></span><span class="c1">//      quicken_table_off[0]  offset into QuickeningInfo section for offset table for DEX[0].
+</span><span class="c1"></span><span class="c1">//      DEX[0]                array of the input DEX files, the bytecode may have been quickened.
+</span><span class="c1"></span><span class="c1">//      quicken_table_off[1]
+</span><span class="c1"></span><span class="c1">//      DEX[1]
+</span><span class="c1"></span><span class="c1">//      ...
+</span><span class="c1"></span><span class="c1">//      DEX[D]
+</span><span class="c1"></span><span class="c1">//
+</span><span class="c1"></span><span class="c1">//   VerifierDeps
+</span><span class="c1"></span><span class="c1">//      uint8[D][]                 verification dependencies
+</span><span class="c1"></span><span class="c1">//
+</span><span class="c1"></span><span class="c1">//   Optionally:
+</span><span class="c1"></span><span class="c1">//      QuickeningInfo
+</span><span class="c1"></span><span class="c1">//        uint8[D][]                  quickening data
+</span><span class="c1"></span><span class="c1">//        uint32[D][]                 quickening data offset tables
+</span></code></pre></td></tr></table>
+</div>
+</div><p>增加了VerifierDeps和QuickeningInfo，其中VerifierDeps是用于快速校验dex里method合法性的，它是在第一次dex2oat的时候生成，
+后面再做dex2oat的时候可以根据这个信息，就不用挨个分析字节码了（虚拟机总是向前兼容的），只要确认依赖的类存在就ok了，详细可以看：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-fallback" data-lang="fallback">commit ca3c8c33501bf199d6fd0a5db30a27d8e010cb23
+Author: David Brazdil &lt;dbrazdil@google.com&gt;
+Date:   Tue Sep 6 14:04:48 2016 +0100
+
+    Collect verifier dependencies
+    
+    MethodVerifier tests whether a DEX method is valid w.r.t. the classes
+    in class path. Since the APK does not change across OTA updates, it
+    is not necessary to analyze the bytecode again with MethodVerifier,
+    as long as its dependencies on the class path (which may have changed)
+    are satisfied.
+    
+    This patch introduces VerifierDeps, a class path dependency collector,
+    and adds hooks into MethodVerifier where classes/methods/fields are
+    resolved and where assignability of types is tested.
+</code></pre></td></tr></table>
+</div>
+</div></div><div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>更新于 2017-12-21</span>
+            </div></div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+            <div class="post-info-share">
+                <span><a href="javascript:void(0);" title="分享到 Twitter" data-sharer="twitter" data-url="https://example.com/android-vdex/" data-title="Android 8.0 VDEX机制简介" data-hashtags="dex2oat,vdex"><i class="fab fa-twitter fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Facebook" data-sharer="facebook" data-url="https://example.com/android-vdex/" data-hashtag="dex2oat"><i class="fab fa-facebook-square fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Hacker News" data-sharer="hackernews" data-url="https://example.com/android-vdex/" data-title="Android 8.0 VDEX机制简介"><i class="fab fa-hacker-news fa-fw" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 Line" data-sharer="line" data-url="https://example.com/android-vdex/" data-title="Android 8.0 VDEX机制简介"><i data-svg-src="https://cdn.jsdelivr.net/npm/simple-icons@7.3.0/icons/line.svg" aria-hidden="true"></i></a><a href="javascript:void(0);" title="分享到 微博" data-sharer="weibo" data-url="https://example.com/android-vdex/" data-title="Android 8.0 VDEX机制简介"><i class="fab fa-weibo fa-fw" aria-hidden="true"></i></a></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <section class="post-tags"><i class="fas fa-tags fa-fw" aria-hidden="true"></i>&nbsp;<a href="/tags/dex2oat/">dex2oat</a>,&nbsp;<a href="/tags/vdex/">vdex</a></section>
+        <section>
+            <span><a href="javascript:void(0);" onclick="window.history.back();">返回</a></span>&nbsp;|&nbsp;<span><a href="/">主页</a></span>
+        </section>
+    </div>
+
+    <div class="post-nav">
+            <a href="/instant-app/" class="next" rel="next" title="Android Instant App简介">Android Instant App简介<i class="fas fa-angle-right fa-fw" aria-hidden="true"></i></a></div>
+</div>
+</article></div>
+            </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line" itemscope itemtype="http://schema.org/CreativeWork"><i class="far fa-copyright fa-fw" aria-hidden="true"></i><span itemprop="copyrightYear">2017 - 2024</span>&nbsp;|&nbsp;<span class="license"><a rel="license external nofollow noopener noreffer" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></span></div>
+        </div>
+    </footer></div>
+
+        <div id="fixed-buttons"><a href="#" id="back-to-top" class="fixed-button" title="回到顶部">
+                <i class="fas fa-arrow-up fa-fw" aria-hidden="true"></i>
+            </a><a href="#" id="view-comments" class="fixed-button" title="查看评论">
+                <i class="fas fa-comment fa-fw" aria-hidden="true"></i>
+            </a>
+        </div><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/autocomplete.js@0.38.1/dist/autocomplete.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/algoliasearch@4.13.1/dist/algoliasearch-lite.umd.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sharer.js@0.5.1/sharer.min.js"></script><script type="text/javascript">window.config={"code":{"copyTitle":"复制到剪贴板","maxShownLines":50},"comment":{},"search":{"algoliaAppID":"PASDMWALPK","algoliaIndex":"index.zh-cn","algoliaSearchKey":"b42948e51daaa93df92381c8e2ac0f93","highlightTag":"em","maxResultLength":10,"noResultsFound":"没有找到结果","snippetLength":50,"type":"algolia"}};</script><script type="text/javascript" src="/js/theme.min.js"></script></body>
+</html>
